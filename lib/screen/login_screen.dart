@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 30),
-              // Logo with fallback
+        
               SizedBox(
                 width: 140,
                 height: 140,

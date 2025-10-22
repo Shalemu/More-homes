@@ -33,7 +33,7 @@ class UserModel {
       firstName: json['first_name'],
       lastName: json['last_name'],
       phone: json['phone'],
-      // email: json['email'],
+
       email: json['email'] ?? '',
       role: json['role'],
       username: json['username'],
@@ -45,11 +45,10 @@ class UserModel {
     );
   }
 
-  // Add a toJson method for sending updates to the backend
-  // This will be used by your AuthProvider's updateUser method
+ 
   Map<String, dynamic> toJson() {
     return {
-      // 'id' is typically not sent in an update payload
+  
        'id': id,
       'first_name': firstName,
       'last_name': lastName,

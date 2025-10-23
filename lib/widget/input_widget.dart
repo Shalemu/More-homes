@@ -1,22 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:morehousesapp/theme/app_color.dart';
 
-
+/// A reusable input decoration for all text fields in the app.
+/// Supports dynamic suffix icons, error messages, and smooth focus visuals.
 InputDecoration inputDecoration(
   String label,
   IconData icon, {
   Widget? suffix,
+  String? hintText,
+  String? errorText,
+  bool isDense = false,
 }) {
   return InputDecoration(
     labelText: label,
-    prefixIcon: Icon(icon, color: AppColors.primary),
+    hintText: hintText,
+    errorText: errorText,
+    prefixIcon: Icon(
+      icon,
+      color: AppColors.primary,
+    ),
     suffixIcon: suffix,
     filled: true,
     fillColor: Colors.white,
-    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-    border: OutlineInputBorder(
+    isDense: isDense,
+    contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+
+    // 🟩 Normal border (unfocused)
+    enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
+      borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
     ),
+
+    // 🟦 Focused border
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
+    ),
+
+    // 🔴 Error borders
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: Colors.red.shade500, width: 1.8),
+    ),
+
+    // 📝 Label, hint & error styles
+    labelStyle: TextStyle(
+      color: Colors.grey.shade600,
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+    ),
+    hintStyle: TextStyle(
+      color: Colors.grey.shade400,
+      fontSize: 15,
+    ),
+    errorStyle: const TextStyle(
+      fontSize: 13,
+      color: Colors.redAccent,
+      fontWeight: FontWeight.w500,
+    ),
+
+    // ✨ Floating label animation (auto hide/show)
+    floatingLabelBehavior: FloatingLabelBehavior.auto,
   );
 }

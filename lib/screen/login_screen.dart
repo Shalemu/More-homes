@@ -77,7 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (username.isEmpty || password.isEmpty) {
       _showPopupNotification(
-          "Please enter both username and password.", AppColors.accent);
+        "Please enter both username and password.",
+        AppColors.accent,
+      );
       return;
     }
 
@@ -95,16 +97,19 @@ class _LoginScreenState extends State<LoginScreen> {
           authData['access'] as String,
           authData['refresh'] as String,
         );
-        _showPopupNotification(
-            "Login successful!", AppColors.primary);
+        _showPopupNotification("Login successful!", AppColors.primary);
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       } else {
         _showPopupNotification(
-            authData['message'] ?? 'Login failed.', AppColors.accent);
+          authData['message'] ?? 'Login failed.',
+          AppColors.accent,
+        );
       }
     } catch (e) {
-      _showPopupNotification(e.toString().replaceFirst('Exception: ', ''),
-          Colors.red.shade700);
+      _showPopupNotification(
+        e.toString().replaceFirst('Exception: ', ''),
+        Colors.red.shade700,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -121,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 30),
-        
+
               SizedBox(
                 width: 140,
                 height: 140,
@@ -172,23 +177,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: inputDecoration(
                         'Username or Email',
                         Icons.email,
+                        hintText: 'Enter your username or email',
                       ),
                     ),
                     const SizedBox(height: 15),
+
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: inputDecoration(
                         'Password',
                         Icons.lock,
+                        hintText: 'Enter your password',
                         suffix: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: Colors.grey.shade600,
+                          ),
                           onPressed: _togglePasswordVisibility,
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 10),
                     Align(
                       alignment: Alignment.centerRight,
@@ -209,8 +221,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: _login,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 15),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -219,9 +232,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: const Text(
                                 'Login',
                                 style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold),
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                     ),

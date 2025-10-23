@@ -1,63 +1,76 @@
 class UserModel {
-  final int? id;
+  final String? uuid;
   final String? firstName;
   final String? lastName;
   final String? phone;
-  final String email;
-  final String? role;
+  final String? email;
   final String? username;
-  final String? userImage;
   final String? location;
   final String? gender;
   final String? dateOfBirth;
-  final String? serviceCharge;
+  final String? profilePictureUrl;
+  final double? serviceCharge;
+  final String? password;
+  final List<String>? permissions;
+  final List<String>? groups;
 
   UserModel({
-    this.id,
+    this.uuid,
     this.firstName,
     this.lastName,
     this.phone,
-    required this.email,
-    this.role,
+    this.email,
     this.username,
-    this.userImage,
     this.location,
     this.gender,
     this.dateOfBirth,
+    this.profilePictureUrl,
     this.serviceCharge,
+    this.password,
+    this.permissions,
+    this.groups,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] != null ? int.tryParse(json['id'].toString()) : null,
+      uuid: json['uuid'],
       firstName: json['first_name'],
       lastName: json['last_name'],
       phone: json['phone'],
-
-      email: json['email'] ?? '',
-      role: json['role'],
+      email: json['email'],
       username: json['username'],
-      userImage: json['profile_picture_url'],
       location: json['location'],
       gender: json['gender'],
       dateOfBirth: json['date_of_birth'],
-      serviceCharge: json['service_charge'],
+      profilePictureUrl: json['profile_picture_url'],
+      serviceCharge: json['service_charge'] != null
+          ? double.tryParse(json['service_charge'].toString())
+          : null,
+      permissions: json['permissions'] != null
+          ? List<String>.from(json['permissions'])
+          : [],
+      groups: json['groups'] != null
+          ? List<String>.from(json['groups'])
+          : [],
     );
   }
 
- 
   Map<String, dynamic> toJson() {
     return {
-  
-       'id': id,
+      'uuid': uuid,
       'first_name': firstName,
       'last_name': lastName,
       'phone': phone,
       'email': email,
+      'username': username,
       'location': location,
       'gender': gender,
       'date_of_birth': dateOfBirth,
+      'profile_picture_url': profilePictureUrl,
       'service_charge': serviceCharge,
+      'password': password,
+      'permissions': permissions,
+      'groups': groups,
     };
   }
 }

@@ -1,20 +1,56 @@
+import 'dart:convert';
+import 'package:flutter/cupertino.dart';
+import 'package:morehousesapp/config/backend_apis.dart';
+import '../models/api_response_model.dart';
+import '../models/user_model.dart';
+import 'api_service.dart';
+
 class AuthService {
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 2)); // simulate API call
-    if (email == 'test@gmail.com' && password == '123456') {
-      return {
-        'status': 'success',
-        'user': {'email': email},
-        'access': 'dummyAccessToken',
-        'refresh': 'dummyRefreshToken',
-      };
+  /// LOGIN
+  Future<ApiResponse<UserModel>> login(String username, String password) async {
+    debugPrint(ApiConstants.login);
+    final apiRequest = ApiService(endpoint: ApiConstants.login);
+
+    final body = {'username': username, 'password': password};
+    final response = await apiRequest.post(body: body);
+
+    // Send POST request
+    debugPrint(response.body);
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      return ApiResponse<UserModel>.fromJson(
+        decoded,
+        (data) => UserModel.fromJson(data),
+      );
     } else {
-      return {'status': 'error', 'message': 'Invalid credentials'};
+      debugPrint("error");
+      throw Exception('Failed to login: ${response.statusCode}');
     }
   }
 
-  Future<Map<String, dynamic>> register(String email, String password) async {
-    await Future.delayed(const Duration(seconds: 2));
-    return {'status': 'success', 'user': {'email': email}};
+  /// REGISTER
+  Future<ApiResponse<UserModel>> register({required dynamic data}) async {
+    final apiRequest = ApiService(endpoint: ApiConstants.registration);
+    Map<String, dynamic> body;
+    if (data is UserModel) {
+      body = data.toJson();
+    } else if (data is Map<String, dynamic>) {
+      body = data;
+    } else {
+      throw Exception('Invalid data type for registration');
+    }
+
+    final response = await apiRequest.post(body: body);
+    final responseBody = jsonDecode(response.body);
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final body = jsonDecode(response.body);
+      return ApiResponse<UserModel>.fromJson(
+        body,
+        (data) => UserModel.fromJson(data),
+      );
+    } else {
+      throw Exception(responseBody['detail'] ?? 'Something went wrong');
+    }
   }
 }

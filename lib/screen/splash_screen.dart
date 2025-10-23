@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:morehousesapp/screen/login_screen.dart';
+import 'package:morehousesapp/theme/app_color.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -27,17 +28,17 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.green,
+      backgroundColor: AppColors.primary,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(Icons.home, size: 100, color: Colors.white),
+            Icon(Icons.home, size: 100, color: AppColors.white),
             SizedBox(height: 20),
             Text(
               'More Homes',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,

@@ -1,0 +1,160 @@
+import 'package:flutter/material.dart';
+import 'package:morehousesapp/theme/app_color.dart';
+import 'edit_profile_screen.dart';
+import 'login_screen.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+
+            //Profile picture and Edit button
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                const CircleAvatar(
+                  radius: 55,
+                  backgroundImage: AssetImage('assets/images/profile_placeholder.png'),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.edit, size: 18, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            const Text(
+              "Shadrack Shalemu",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              "Owner",
+              style: TextStyle(color: Colors.grey, fontSize: 15),
+            ),
+
+            const SizedBox(height: 30),
+
+            //Profile menu section inside card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _profileMenuItem(
+                    icon: Icons.person_outline,
+                    text: "Edit Profile",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _profileMenuItem(
+                    icon: Icons.notifications_none,
+                    text: "Notification",
+                  ),
+                _profileMenuItem(
+  icon: Icons.info_outline, 
+  text: "About App",
+),
+
+_profileMenuItem(
+  icon: Icons.help_outline, 
+  text: "Help & Support",
+),
+
+                  _profileMenuItem(
+                    icon: Icons.lock_outline,
+                    text: "Change Password",
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            //Sign out button
+          ElevatedButton.icon(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: AppColors.primary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    minimumSize: const Size(double.infinity, 55),
+  ),
+  onPressed: () {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+  },
+  icon: const Icon(Icons.logout_rounded),
+  label: const Text(
+    "Sign Out",
+    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+  ),
+),
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  //Reusable Menu Item 
+  Widget _profileMenuItem({
+    required IconData icon,
+    required String text,
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: CircleAvatar(
+        backgroundColor: AppColors.primary.withOpacity(0.1),
+        child: Icon(icon, color: AppColors.primary),
+      ),
+      title: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
+}

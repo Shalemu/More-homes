@@ -3,62 +3,85 @@ import 'package:morehousesapp/theme/app_color.dart';
 import 'package:morehousesapp/widget/input_widget.dart';
 import 'package:morehousesapp/models/user_model.dart';
 import '../services/auth_services.dart';
-import '../theme/app_text_field.dart';
-import 'login_screen.dart';
+import '../config/app_routes.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({Key? key}) : super(key: key);
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final emailController = TextEditingController();
-  final phoneController = TextEditingController();
-  final firstNameController = TextEditingController();
-  final lastNameController = TextEditingController();
-  final passwordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
-  bool _isPasswordHidden = true;
+  bool _obscurePassword = true;
   bool _isLoading = false;
 
   void _togglePasswordVisibility() {
-    setState(() {
-      _isPasswordHidden = !_isPasswordHidden;
-    });
+    setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  void _showSnackBar(String message, {Color color = AppColors.primary}) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+  void _showPopupNotification(String message, Color backgroundColor) {
+    final overlay = Overlay.of(context);
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(overlayEntry);
+    Future.delayed(const Duration(seconds: 3), () => overlayEntry.remove());
   }
 
   Future<void> _register() async {
-    final email = emailController.text.trim();
-    final phone = phoneController.text.trim();
-    final firstName = firstNameController.text.trim();
-    final lastName = lastNameController.text.trim();
-    final location = lastNameController.text.trim();
-    final password = passwordController.text;
-    final confirmPassword = confirmPasswordController.text;
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final location = _locationController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
-    // Validation
-    if (email.isEmpty ||
-        phone.isEmpty ||
-        location.isEmpty ||
-        firstName.isEmpty ||
-        lastName.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      _showSnackBar("Please fill in all fields.", color: AppColors.danger);
+    if ([email, phone, firstName, lastName, location, password, confirmPassword]
+        .any((element) => element.isEmpty)) {
+      _showPopupNotification("Please fill in all fields.", AppColors.accent);
       return;
     }
 
     if (password != confirmPassword) {
-      _showSnackBar("Passwords do not match.", color: AppColors.danger);
+      _showPopupNotification("Passwords do not match.", AppColors.accent);
       return;
     }
 
@@ -79,22 +102,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final response = await authService.register(data: user);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        _showSnackBar("Registration successful!", color: AppColors.primary);
-
-        // Navigate to login
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      }
-      else {
-        _showSnackBar(response.detail, color: AppColors.danger);
+        _showPopupNotification("Registration successful!", AppColors.primary);
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.pushReplacementNamed(context, AppRoutes.login);
+        });
+      } else {
+        _showPopupNotification(response.detail, AppColors.accent);
       }
     } catch (e, stackTrace) {
       debugPrint('$e $stackTrace');
-      _showSnackBar(
+      _showPopupNotification(
         e.toString().replaceFirst('Exception: ', ''),
-        color: AppColors.danger,
+        Colors.red.shade700,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -104,140 +123,146 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 100),
-            const Text(
-              "Create Account",
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: AppColors.white,
-              ),
-            ),
-            const SizedBox(height: 60),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(30),
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(50),
-                  topRight: Radius.circular(50),
+      backgroundColor: const Color(0xFFF5F6FA),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 30),
+              SizedBox(
+                width: 140,
+                height: 140,
+                child: Image.asset(
+                  'assets/logo/faramas_logo.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Text(
+                        'More Homes',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-              child: Column(
-                children: [
-                  AppTextField(
-                    controller: firstNameController,
-                    hintText: "First Name",
-                    label: "First Name",
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: lastNameController,
-                    hintText: "Last Name",
-                    label: "Last Name",
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: emailController,
-                    hintText: "Enter your email e.g. test@gmail.com",
-                    label: "Email",
-                    icon: Icons.email,
-                  ),
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: phoneController,
-                    hintText: "e.g +25576205....",
-                    label: "Phone",
-                    icon: Icons.phone,
-                  ),
-
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: passwordController,
-                    obscureText: _isPasswordHidden,
-                    label: "Password",
-                    hintText: 'Password',
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        _isPasswordHidden
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: AppColors.grey,
-                      ),
-                      onPressed: _togglePasswordVisibility,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    controller: confirmPasswordController,
-                    obscureText: _isPasswordHidden,
-                    label: "Confirm Password",
-                    hintText: 'Confirm Password',
-                    icon: Icons.lock_outline,
-                    suffix: IconButton(
-                      icon: Icon(
-                        _isPasswordHidden
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: AppColors.grey,
-                      ),
-                      onPressed: _togglePasswordVisibility,
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : ElevatedButton(
-                            onPressed: _register,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              "Sign Up",
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: AppColors.textLight,
-                              ),
-                            ),
-                          ),
-                  ),
-                  const SizedBox(height: 25),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "Back to Login",
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 20),
+              const Text(
+                'Create Account',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 25),
+              Container(
+                padding: const EdgeInsets.all(25),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _firstNameController,
+                      decoration: inputDecoration('First Name', Icons.person),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _lastNameController,
+                      decoration: inputDecoration('Last Name', Icons.person_outline),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _emailController,
+                      decoration: inputDecoration('Email', Icons.email),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _phoneController,
+                      decoration: inputDecoration('Phone', Icons.phone),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _locationController,
+                      decoration: inputDecoration('Location', Icons.location_on),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: inputDecoration(
+                        'Password',
+                        Icons.lock,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          ),
+                          onPressed: _togglePasswordVisibility,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscurePassword,
+                      decoration: inputDecoration('Confirm Password', Icons.lock_outline),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : ElevatedButton(
+                              onPressed: _register,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Sign Up',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacementNamed(context, AppRoutes.login);
+                      },
+                      child: const Text(
+                        "Back to Login",
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

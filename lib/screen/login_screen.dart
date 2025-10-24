@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:morehousesapp/models/api_response_model.dart';
 import 'package:morehousesapp/models/user_model.dart';
+import 'package:morehousesapp/screen/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:morehousesapp/providers/auth_providers.dart';
 import 'package:morehousesapp/services/auth_services.dart';
 import 'package:morehousesapp/theme/app_color.dart';
-import 'package:morehousesapp/theme/app_text.dart';
 import 'package:morehousesapp/widget/input_widget.dart';
 import '../config/app_routes.dart';
-import '../theme/app_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void initState() {
+    super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -37,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeInOut,
     );
     _controller.forward();
-    super.initState();
   }
 
   @override
@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen>
             child: Text(
               message,
               style: const TextStyle(
-                color: AppColors.white,
+                color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -112,25 +112,35 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       final authService = AuthService();
-      final authRes = await authService.login(username, password);
+      final ApiResponse<UserModel> authRes = await authService.login(
+        username,
+        password,
+      );
 
       if (!mounted) return;
 
       if (authRes.statusCode == 200 || authRes.statusCode == 201) {
+        // Save login info via provider
+        final user = authRes.data!;
         Provider.of<AuthProvider>(context, listen: false).login(
-          authRes.data as UserModel,
-          authRes.access as String,
-          authRes.refresh as String,
+          user, // UserModel
+          authRes.access ?? '', // access token
+          authRes.refresh ?? '', // refresh token
         );
+
         _showPopupNotification("Login successful!", AppColors.primary);
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       } else {
         _showPopupNotification(
-            authData['message'] ?? 'Login failed.', AppColors.accent);
+          authRes.detail.isNotEmpty ? authRes.detail : 'Login failed.',
+          AppColors.accent,
+        );
       }
     } catch (e) {
-      _showPopupNotification(e.toString().replaceFirst('Exception: ', ''),
-          Colors.red.shade700);
+      _showPopupNotification(
+        e.toString().replaceFirst('Exception: ', ''),
+        Colors.red.shade700,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -138,8 +148,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       body: Center(
@@ -149,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 30),
-        
               SizedBox(
                 width: 140,
                 height: 140,
@@ -210,9 +217,11 @@ class _LoginScreenState extends State<LoginScreen>
                         'Password',
                         Icons.lock,
                         suffix: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility),
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
                           onPressed: _togglePasswordVisibility,
                         ),
                       ),
@@ -237,8 +246,9 @@ class _LoginScreenState extends State<LoginScreen>
                               onPressed: _login,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 15),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -247,36 +257,45 @@ class _LoginScreenState extends State<LoginScreen>
                               child: const Text(
                                 'Login',
                                 style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold),
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 30),
-
-                // SIGNUP LINK
-                GestureDetector(
-                  onTap: _goToSignUp,
-                  child: const Text.rich(
-                    TextSpan(
-                      text: "Don’t have an account? ",
-                      children: [
-                        TextSpan(
-                          text: "Sign Up",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
+                            ),
                     ),
-                  ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => HomeScreen()),
+                        );
+                      },
+                      child: Text('home', style: TextStyle(fontSize: 20)),
+                    ),
+
+                    const SizedBox(height: 30),
+                    GestureDetector(
+                      onTap: _goToSignUp,
+                      child: const Text.rich(
+                        TextSpan(
+                          text: "Don’t have an account? ",
+                          children: [
+                            TextSpan(
+                              text: "Sign Up",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

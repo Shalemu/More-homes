@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:morehousesapp/screen/login_screen.dart';
+import 'package:morehousesapp/screen/register_screen.dart';
+import 'package:morehousesapp/screen/home_screen.dart';
 import 'package:morehousesapp/screen/splash_screen.dart';
-
+import 'package:morehousesapp/config/app_routes.dart';
 
 void main() {
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Add other providers here if needed
-      ],
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -25,7 +20,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const SplashScreen(), 
+      initialRoute: AppRoutes.splash, // or AppRoutes.login
+      routes: {
+        AppRoutes.splash: (context) => const SplashScreen(),
+        AppRoutes.login: (context) => const LoginScreen(),
+        AppRoutes.registration: (context) => const RegisterScreen(),
+        AppRoutes.home: (context) => const HomeScreen(),
+      },
     );
   }
 }

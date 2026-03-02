@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import 'package:morehomesapp/theme/app_color.dart';
 import 'dart:convert';
+
 
 class MapPickerScreen extends StatefulWidget {
   const MapPickerScreen({super.key});
@@ -169,8 +171,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pick Location'),
-        backgroundColor: Colors.green[700],
+        title: const Text('Pick Location',style: TextStyle(color: Colors.white),),
+        backgroundColor: AppColors.primary, // Using AppColors.primary
+         iconTheme: const IconThemeData(
+      color: AppColors.textLight, // <-- makes back arrow white
+    ),
       ),
       body: Stack(
         children: [
@@ -195,7 +200,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                       height: 40,
                       child: const Icon(
                         Icons.location_pin,
-                        color: Colors.red,
+                        color: AppColors.danger, // Use danger color for marker
                         size: 40,
                       ),
                     ),
@@ -212,14 +217,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               decoration: InputDecoration(
                 hintText: 'Search place or address',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: AppColors.white, // Using AppColors.white
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide.none,
                 ),
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, color: Colors.black54),
                 suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search, color: Colors.black54),
                   onPressed: () async {
                     final query = _searchController.text;
                     if (query.isNotEmpty) {
@@ -247,32 +252,36 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               right: 20,
               child: ElevatedButton.icon(
                 onPressed: _loading ? null : _onConfirm,
-                icon: const Icon(Icons.check_circle_outline),
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
                 label: _loading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: AppColors.white, // Loader color
                         ),
                       )
-                    : const Text('Confirm This Location'),
+                    : const Text('Confirm This Location', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
+                  backgroundColor: AppColors.primary, // Using AppColors.primary
+                  textStyle: const TextStyle(color: Colors.white),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
+
+            
             ),
+            
           Positioned(
             bottom: 20,
             right: 20,
             child: PopupMenuButton<String>(
-              icon: const Icon(Icons.layers, color: Colors.blue, size: 30),
-              color: Colors.white,
+              icon: const Icon(Icons.layers, color: AppColors.accent, size: 30),
+              color: AppColors.white,
               onSelected: (val) {
                 setState(() {
                   _selectedMapStyle = val;
@@ -307,7 +316,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     value: entry.key,
                     child: Row(
                       children: [
-                        Icon(iconData, size: 20, color: Colors.blue),
+                        Icon(iconData, size: 20, color: AppColors.accent),
                         const SizedBox(width: 8),
                         Text(entry.key),
                       ],
@@ -319,6 +328,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           ),
         ],
       ),
+     
     );
+    
   }
 }

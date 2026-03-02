@@ -60,49 +60,78 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   Future<void> _resetPassword() async {
-    final otp = _otpController.text.trim();
-    final phone = _phoneController.text.trim();
-    final newPassword = _newPasswordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
+  final otp = _otpController.text.trim();
+  final phone = _phoneController.text.trim();
+  final newPassword = _newPasswordController.text.trim();
+  final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (otp.isEmpty || phone.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-      _showSnack('Please fill all fields.');
-      return;
-    }
+  if (otp.isEmpty || phone.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+    _showSnack('Please fill all fields.');
+    return;
+  }
 
-    if (newPassword != confirmPassword) {
-      _showSnack('Passwords do not match.');
-      return;
-    }
+  if (newPassword != confirmPassword) {
+    _showSnack('Passwords do not match.');
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      final response = await http.post(
-        Uri.parse(ApiConstants.resetPassword),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'otp': otp,
-          'phone': phone,
-          'password': newPassword,
-          'confirm_password': confirmPassword,
-        }),
-      );
+  try {
+    final url = Uri.parse(ApiConstants.resetPassword);
 
+    print("====== RESET PASSWORD REQUEST ======");
+    print("URL: $url");
+    print("BODY: ${jsonEncode({
+      'otp': otp,
+      'phone': phone,
+      'password': newPassword,
+      'confirm_password': confirmPassword,
+    })}");
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'otp': otp,
+        'phone': phone,
+        'password': newPassword,
+        'confirm_password': confirmPassword,
+      }),
+    );
+
+    print("====== RESPONSE ======");
+    print("Status Code: ${response.statusCode}");
+    print("Headers: ${response.headers}");
+    print("Raw Body: ${response.body}");
+
+    if (response.headers['content-type']?.contains('application/json') ?? false) {
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && data['detail'] != null) {
-        _showSnack(data['detail'], Colors.green);
-        Future.delayed(const Duration(seconds: 2), () => Navigator.pop(context));
+      if (response.statusCode == 200) {
+        _showSnack(data['detail'] ?? "Password reset successful", Colors.green);
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.pop(context);
+        });
       } else {
-        _showSnack(data['detail'] ?? 'Reset failed.');
+        _showSnack(data.toString());
       }
-    } catch (e) {
-      _showSnack('Error: $e');
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      // It returned HTML
+      _showSnack("Server returned HTML error. Check terminal.");
     }
+  } catch (e, stack) {
+    print("====== ERROR ======");
+    print(e);
+    print(stack);
+    _showSnack("Error occurred. Check terminal.");
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {

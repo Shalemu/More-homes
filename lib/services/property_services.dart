@@ -1,16 +1,15 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/models/property_model.dart';
+import 'package:http/http.dart' as http;
 
 class PropertyService {
-  static const String baseUrl = 'http://213.199.45.65:9099/homes';
-
   // Upload property (JSON only)
   static Future<bool> uploadProperty(Map<String, dynamic> propertyData, String token) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/properties/'),
+        Uri.parse(ApiConstants.uploaderProperties),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -32,7 +31,7 @@ class PropertyService {
   static Future<List<Map<String, dynamic>>> fetchProperties() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/properties/'),
+        Uri.parse(ApiConstants.getProperties),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -54,12 +53,11 @@ class PropertyService {
 
   // Fetch properties uploaded by the logged-in user
   static Future<List<PropertyModel>> fetchUploaderProperties(String token) async {
-    const String url = "$baseUrl/uploader-properties/";
     final List<PropertyModel> uploaderProperties = [];
 
     try {
       final response = await http.get(
-        Uri.parse(url),
+        Uri.parse(ApiConstants.getUploaderProperties),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -86,7 +84,7 @@ class PropertyService {
 
   // Delete property
   static Future<bool> deleteProperty({required String token, required String uuid}) async {
-    final String url = "$baseUrl/properties/$uuid/";
+    final String url = "${ApiConstants.uploaderProperties}$uuid/";
 
     try {
       final response = await http.delete(

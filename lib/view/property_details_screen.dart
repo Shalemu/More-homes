@@ -68,24 +68,22 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
     'furnished': Icons.chair,
   };
 
-  String _fixImageUrl(String url) {
-    try {
-      if (url.contains('://')) {
-        final uri = Uri.parse(url);
-        if (uri.port == 0 || uri.port == 80 || uri.port != _backendPort) {
-          return '${uri.scheme}://${uri.host}:$_backendPort${uri.path}';
-        }
-        return url;
-      } else {
-        return '$_backendHost:$_backendPort/$url'
-            .replaceAll('//', '/')
-            .replaceFirst(':/', '://');
-      }
-    } catch (e) {
-      debugPrint('Error fixing image URL ($url): $e');
+String _fixImageUrl(String url) {
+  try {
+    if (url.startsWith('http')) {
+      // Already a full URL, return as is
       return url;
+    } else {
+      // Relative path from backend
+      return 'http://$_backendHost:$_backendPort/$url'
+          .replaceAll('//', '/')
+          .replaceFirst(':/', '://');
     }
+  } catch (e) {
+    debugPrint('Error fixing image URL ($url): $e');
+    return url;
   }
+}
 
   IconData _getFacilityIcon(String name) {
     final key = name.toLowerCase();

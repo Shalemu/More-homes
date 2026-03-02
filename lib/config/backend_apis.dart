@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 class ApiConstants {
-  static const String baseUrl = "http://213.199.45.65:9099";
+  static const String baseUrl = "https://morehomes.co.tz";
+
 
   // Auth
   static const String login = "$baseUrl/auth/login/";
@@ -9,8 +10,8 @@ class ApiConstants {
   static const String otpVerify = "$baseUrl/auth/otp/verify/";
   static const String otpRequest = "$baseUrl/auth/otp/request/";
   static const String otpRequestForPassword = "$baseUrl/auth/request/reset-token";
-  static const String resetPassword = "$baseUrl/auth/reset/user-password/";
-  static const String changePassword = "$baseUrl/auth/user-change-password/";
+  static const String resetPassword = "$baseUrl/auth/reset/user-password";
+  static const String changePassword = "$baseUrl/auth/user-change-password";
   static const String roles = "$baseUrl/auth/roles/";
 
   // Properties

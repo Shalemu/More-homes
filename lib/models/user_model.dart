@@ -6,7 +6,6 @@ class UserModel {
   final String email;
   final String location;
   final String password;
-  // final String? serviceCharge;
   final List<int> groups;
   final String? profilePictureUrl;
 
@@ -18,7 +17,6 @@ class UserModel {
     required this.email,
     required this.location,
     required this.password,
-    // this.serviceCharge,
     required this.groups,
     this.profilePictureUrl,
   });
@@ -33,7 +31,6 @@ class UserModel {
       "email": email,
       "location": location,
       "password": password,
-      // "service_charge": serviceCharge,
       "groups": groups,
     };
   }
@@ -47,7 +44,6 @@ class UserModel {
       email: json["email"] ?? '',
       location: json["location"] ?? '',
       password: json["password"] ?? '',
-      // serviceCharge: json["service_charge"],
       groups: List<int>.from(json["groups"] ?? []),
       profilePictureUrl: json["profile_picture_url"],
     );

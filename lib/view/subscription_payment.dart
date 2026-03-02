@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/view/order_details.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -36,34 +37,43 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
-  Future<void> fetchSubscriptionOrder(String token) async {
-    setState(() => isLoading = true);
-    final url = Uri.parse("http://213.199.45.65:9099/payment/my-order");
-    try {
-      final response = await http.get(
-        url,
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+Future<void> fetchSubscriptionOrder(String token) async {
+  setState(() => isLoading = true);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['data'] != null && data['data'].isNotEmpty) {
-          order = data['data'][0]; // take the first order
-        } else {
-          order = null;
-        }
+  final url = Uri.parse(ApiConstants.paymentUrl); // Use constant from ApiConstants
+
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data['data'] != null && data['data'].isNotEmpty) {
+        order = data['data'][0]; // take the first order
       } else {
         order = null;
       }
-    } catch (e) {
+    } else if (response.statusCode == 404) {
+      // No orders found
       order = null;
-      debugPrint("Error fetching subscription order: $e");
+    } else {
+      order = null;
+      debugPrint(
+          "Unexpected status code ${response.statusCode} fetching subscription order");
     }
-    setState(() => isLoading = false);
+  } catch (e) {
+    order = null;
+    debugPrint("Error fetching subscription order: $e");
   }
+
+  setState(() => isLoading = false);
+}
 
   @override
   Widget build(BuildContext context) {

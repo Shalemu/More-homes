@@ -19,7 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController(text: '+255 ');
   final _locationController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _serviceChargeController = TextEditingController();
+
 
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -92,90 +92,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
     Future.delayed(const Duration(seconds: 3), () => overlayEntry.remove());
   }
 
-  Future<void> _register() async {
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    final email = _emailController.text.trim();
-    final location = _locationController.text.trim();
-    final password = _passwordController.text.trim();
-    final serviceCharge = _serviceChargeController.text.trim();
+Future<void> _register() async {
+  final firstName = _firstNameController.text.trim();
+  final lastName = _lastNameController.text.trim();
+  final email = _emailController.text.trim();
+  final location = _locationController.text.trim();
+  final password = _passwordController.text.trim();
 
-    String phone = _phoneController.text.replaceAll(' ', '').trim();
+  // Remove all spaces
+  String phone = _phoneController.text.replaceAll(' ', '').trim();
 
-    if (!phone.startsWith('+255')) {
-      phone = '+255${phone.replaceAll(RegExp(r'^\+?255?'), '')}';
-    }
-
-    if (!RegExp(r'^\+2557\d{8}$').hasMatch(phone)) {
-      _showPopupNotification(
-        'Phone number must start with +2557 and have 9 digits after +255',
-        Colors.redAccent,
-      );
-      return;
-    }
-
-    if ([firstName, lastName, email, phone, location, password].any((e) => e.isEmpty)) {
-      _showPopupNotification("Please fill in all fields.", Colors.redAccent);
-      return;
-    }
-
-    if (_selectedRoleId == null) {
-      _showPopupNotification("Please select a user type.", Colors.redAccent);
-      return;
-    }
-
-    final selectedRole = _roles.firstWhere(
-      (r) => r['id'] == _selectedRoleId,
-      orElse: () => {},
-    );
-
-    if ((selectedRole['name']?.toString().toLowerCase() ?? '') == 'owner' &&
-        serviceCharge.isEmpty) {
-      _showPopupNotification("Please enter service charge for Owners.", Colors.redAccent);
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final groups = [_selectedRoleId!];
-
-      final user = UserModel(
-        uuid: '',
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        phone: phone,
-        location: location,
-        password: password,
-        // serviceCharge: (selectedRole['name']?.toString().toLowerCase() == 'owner')
-        //     ? serviceCharge
-        //     : null,
-        groups: groups,
-      );
-
-      final authService = AuthService();
-      final response = await authService.register(data: user);
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        _showPopupNotification("Registration successful!", AppColors.primary);
-        Future.delayed(const Duration(seconds: 1), () {
-          Navigator.pushReplacementNamed(context, AppRoutes.login);
-        });
-      } else {
-        _showPopupNotification(
-          "Registration failed: ${response.detail.isNotEmpty ? response.detail : 'Unknown error'}",
-          Colors.redAccent,
-        );
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Register error: $e\n$stackTrace');
-      _showPopupNotification(e.toString(), Colors.redAccent);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  // Normalize phone to +255XXXXXXXXX
+  if (phone.startsWith('0')) {
+    // e.g., 07xxxxxxx or 06xxxxxxx => +2557xxxxxxx
+    phone = '+255${phone.substring(1)}';
+  } else if (phone.startsWith('255')) {
+    // e.g., 2557xxxxxxx => +2557xxxxxxx
+    phone = '+$phone';
+  } else if (!phone.startsWith('+255')) {
+    // Any other format, just prefix +255
+    phone = '+255$phone';
   }
 
+  // Debug: print formatted phone
+  debugPrint("Phone after formatting: $phone");
+
+  // Validate phone: must start with +255 and have exactly 9 digits after
+  if (!RegExp(r'^\+255\d{9}$').hasMatch(phone)) {
+    _showPopupNotification(
+      'Phone number must start with +255 and have 9 digits after +255',
+      Colors.redAccent,
+    );
+    debugPrint("Phone validation failed for: $phone");
+    return;
+  }
+
+  if ([firstName, lastName, email, phone, location, password].any((e) => e.isEmpty)) {
+    _showPopupNotification("Please fill in all fields.", Colors.redAccent);
+    return;
+  }
+
+  if (_selectedRoleId == null) {
+    _showPopupNotification("Please select a user type.", Colors.redAccent);
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final user = UserModel(
+      uuid: '',
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      phone: phone,
+      location: location,
+      password: password,
+      groups: [_selectedRoleId!],
+    );
+
+    // Debug: print full user object
+    debugPrint("User object to send: ${user.toJson()}");
+
+    final authService = AuthService();
+    final response = await authService.register(data: user);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      _showPopupNotification("Registration successful!", AppColors.primary);
+      Future.delayed(const Duration(seconds: 1), () {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      });
+    }
+  } catch (e, stackTrace) {
+    debugPrint('Register error: $e\n$stackTrace');
+    _showPopupNotification(e.toString(), Colors.redAccent);
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
   String? selectedRoleName() {
     final role = _roles.firstWhere(
       (r) => r['id'] == _selectedRoleId,

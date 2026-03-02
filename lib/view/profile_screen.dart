@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:morehomesapp/view/about_app_screen.dart';
 import 'package:morehomesapp/view/change_password_screen.dart';
 import 'package:morehomesapp/view/help_support_screen.dart';
-import 'package:morehomesapp/view/language_screen.dart';
 import 'package:morehomesapp/view/payment_history.dart';
 import 'package:morehomesapp/view/privacy_policy_screen.dart';
 import 'package:morehomesapp/view/subscription_payment.dart';
@@ -289,18 +288,18 @@ class ProfileScreen extends StatelessWidget {
                                   },
                                 ),
 
-                                _profileMenuItem(
-                                  icon: Icons.language,
-                                  text: "Language",
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const LanguageScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
+                                // _profileMenuItem(
+                                //   icon: Icons.language,
+                                //   text: "Language",
+                                //   onTap: () {
+                                //     Navigator.push(
+                                //       context,
+                                //       MaterialPageRoute(
+                                //         builder: (_) => const LanguageScreen(),
+                                //       ),
+                                //     );
+                                //   },
+                                // ),
                               ],
                             ),
                           ),

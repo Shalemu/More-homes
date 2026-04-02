@@ -13,6 +13,8 @@ class ApiConstants {
   static const String resetPassword = "$baseUrl/auth/reset/user-password";
   static const String changePassword = "$baseUrl/auth/user-change-password";
   static const String roles = "$baseUrl/auth/roles/";
+  //ads
+ static const String addBanner = "$baseUrl/auth/ads/";
 
   // Properties
   static const String getProperties = "$baseUrl/homes/properties/"; // All public properties
@@ -27,14 +29,38 @@ class ApiConstants {
   static const String booking = "$baseUrl/api/book/property/";
   static const String airbnbBooking = "$baseUrl/api/airbnb-bookings/";
 
-  //payment
-static const String paymentUrl = "$baseUrl/payment/my-order";
-static const String paymentHistory = "$baseUrl/payment/payment-history";
+
+
 
 // feedback
   static const String listPropertyFeedback = "$baseUrl/homes/property-feedbacks/"; //list property feedbacks
   static const String propertyFeedback = "$baseUrl/homes/property-owner-feedbacks/"; //list property owner feedbacks
   static const String saveFeedback = "$baseUrl/homes/property-feedbacks/"; //save property feedbacks
+
+
+  /// Check if user can access contact
+  static const String checkEligibility =
+      "$baseUrl/payment/check-eligibility?subscribe_url=subscribe&invoice_url=invoice";
+
+  /// Get all plans
+  static const String plans = "$baseUrl/payment/plans";
+
+  /// Get all user invoices
+  static const String myInvoices = "$baseUrl/payment/invoices/me";
+
+  /// Dynamic: Subscribe to plan
+  static String subscribe(String planUuid) =>
+      "$baseUrl/payment/subscribe/$planUuid";
+
+  /// Dynamic: Get invoice detail
+  static String invoiceDetail(String invoiceId) =>
+      "$baseUrl/payment/invoice/$invoiceId";
+
+  /// Dynamic: Make payment
+  static String makePayment(String invoiceId) =>
+      "$baseUrl/payment/make-payment/$invoiceId";
+
+
 
 }
 

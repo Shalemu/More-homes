@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:morehomesapp/models/property_model.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:morehomesapp/providers/property_provider.dart';
@@ -20,8 +21,11 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
   List<PropertyModel> _filteredProperties = [];
 
   /// Backend host and port
-  final String _backendHost = 'http://213.199.45.65';
-  final int _backendPort = 9099;
+  final String _baseUrl = 'https://morehomes.co.tz';
+  String fixImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    return '$_baseUrl/$url'.replaceAll('//', '/');
+  }
 
   @override
   void initState() {
@@ -56,30 +60,13 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
       debugPrint('===== Loaded Properties =====');
       for (var p in _filteredProperties) {
         final firstImage = p.images.isNotEmpty
-            ? _fixImageUrl(p.images.first)
+            ? fixImageUrl(p.images.first)
             : "None";
         debugPrint(
           'Name: ${p.name}, UUID: ${p.uuid}, Images: ${p.images.length}, First Image: $firstImage',
         );
       }
       debugPrint('===== End of Properties =====');
-    }
-  }
-
-  /// Ensure image URL contains the backend port
-  String _fixImageUrl(String url) {
-    if (url.contains('://')) {
-      // Already has protocol, check if port is missing
-      final uri = Uri.parse(url);
-      if (uri.port == 80 || uri.port == 0) {
-        return '${uri.scheme}://${uri.host}:$_backendPort${uri.path}';
-      }
-      return url; // already has correct port
-    } else {
-      // Relative path, prepend host + port
-      return '$_backendHost:$_backendPort/$url'
-          .replaceAll('//', '/')
-          .replaceFirst(':/', '://');
     }
   }
 
@@ -222,7 +209,7 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
   /// Property card with fixed image URLs & debug prints
   Widget _buildPropertyCard(PropertyModel property, int index) {
     final imageUrl = property.images.isNotEmpty
-        ? _fixImageUrl(property.images.first)
+        ? fixImageUrl(property.images.first)
         : null;
 
     // Clickable Image Widget
@@ -334,7 +321,7 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
                 const SizedBox(height: 6),
 
                 Text(
-                  'Tsh ${property.price}',
+                  'Tsh ${NumberFormat('#,##0').format(double.tryParse(property.price) ?? 0)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -380,17 +367,13 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
                     ),
                   ],
                 ),
-                  const SizedBox(height: 15),
-              
+                const SizedBox(height: 15),
               ],
             ),
           ),
         ],
       ),
-      
-      
     );
-    
   }
 
   /// Empty state
@@ -417,5 +400,4 @@ class _MyPropertiesScreenState extends State<MyPropertiesScreen> {
       ),
     );
   }
-
 }

@@ -13,5 +13,6 @@ class AppRoutes {
 
   // Property / Comment Screens
   static const String propertyDetail = '/property-detail';
+  
 
 }

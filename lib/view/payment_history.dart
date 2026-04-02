@@ -1,18 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/backend_apis.dart';
-import '../view/order_details.dart';
-
-enum DialogType { payment, success, error, info }
+import 'invoice_details.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
-  final String? orderId;
-  final String? userId;
-
-  const PaymentHistoryScreen({super.key, this.orderId, this.userId});
+  const PaymentHistoryScreen({super.key});
 
   @override
   State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
@@ -24,13 +20,29 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
   bool isLoading = true;
   String message = '';
 
+  late AnimationController _controller;
+
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     fetchPaymentHistory();
   }
 
-  /// Fetch payment history
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String formatMoney(dynamic value) {
+    final amount = double.tryParse(value.toString()) ?? 0;
+    return NumberFormat('#,##0').format(amount);
+  }
+
   Future<void> fetchPaymentHistory() async {
     setState(() {
       isLoading = true;
@@ -43,274 +55,297 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen>
 
       if (token == null || token.isEmpty) {
         setState(() {
-          message = "Access token not found. Please login again.";
+          message = "Session expired. Please login again.";
           isLoading = false;
         });
         return;
       }
 
-      final url = Uri.parse("${ApiConstants.paymentHistory}/"); 
+      final url = Uri.parse("${ApiConstants.myInvoices}?paid=true");
+
       final response = await http.get(
         url,
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
 
-      dynamic data;
-      try {
-        data = json.decode(response.body);
-      } catch (_) {
-        data = null;
-      }
+      final data = json.decode(response.body);
 
       if (response.statusCode == 200) {
-        payments = data?["data"] ?? [];
         setState(() {
+          payments = data["data"] ?? [];
           isLoading = false;
-          message = payments.isEmpty ? "No payments found." : '';
+          message = payments.isEmpty ? "No paid invoices found." : '';
         });
-      } else if (response.statusCode == 404) {
-        payments = [];
-        setState(() {
-          message = data != null
-              ? (data['detail'] ?? "No payments found for your account.")
-              : "No payments found for your account.";
-          isLoading = false;
-        });
+
+        _controller.forward(from: 0);
       } else {
-        payments = [];
         setState(() {
-          message =
-              'Failed to load payment history. Status code: ${response.statusCode}';
+          payments = [];
+          message = data["detail"] ?? "Failed to load payment history.";
           isLoading = false;
         });
       }
     } catch (e) {
-      payments = [];
       setState(() {
-        message = 'Error loading payment history: $e';
+        payments = [];
+        message = "Error: $e";
         isLoading = false;
       });
     }
   }
 
-  /// Show Airbnb-style animated dialog
-  Future<void> showCustomDialog(String message,
-      {DialogType type = DialogType.error}) async {
-    Color iconColor;
-    String title;
-
-    switch (type) {
-      case DialogType.success:
-        iconColor = AppColors.primary;
-        title = "Success";
-        break;
-      case DialogType.error:
-        iconColor = AppColors.danger;
-        title = "Error";
-        break;
-      case DialogType.info:
-        iconColor = AppColors.secondary;
-        title = "Info";
-        break;
-      case DialogType.payment:
-        iconColor = AppColors.accent;
-        title = "Payment Required";
-        break;
-    }
-
-    await showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: "Dialog",
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return Transform.scale(
-          scale: anim1.value,
-          child: Opacity(
-            opacity: anim1.value,
-            child: Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              insetPadding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      type == DialogType.success
-                          ? Icons.check_circle
-                          : type == DialogType.error
-                              ? Icons.error
-                              : type == DialogType.info
-                                  ? Icons.info
-                                  : Icons.payment,
-                      size: 64,
-                      color: iconColor,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: iconColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          "OK",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textLight,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+  void openInvoice(dynamic invoice) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailScreen(invoice: invoice),
+      ),
     );
-  }
-
-  /// View the most recent order
-  Future<void> viewOrder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access');
-
-    if (token == null || token.isEmpty) {
-      await showCustomDialog("Please login again.", type: DialogType.error);
-      return;
-    }
-
-    final url = Uri.parse("${ApiConstants.paymentUrl}/");
-
-    try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      dynamic jsonBody;
-      try {
-        jsonBody = json.decode(response.body);
-      } catch (_) {
-        jsonBody = null;
-      }
-
-      if (response.statusCode == 200) {
-        if (jsonBody == null || jsonBody["data"] == null || jsonBody["data"].isEmpty) {
-          await showCustomDialog("No active order found.", type: DialogType.info);
-          return;
-        }
-
-        final order = jsonBody["data"][0];
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OrderDetailScreen(order: order),
-          ),
-        );
-      } else if (response.statusCode == 404) {
-        await showCustomDialog(
-          jsonBody != null
-              ? (jsonBody['detail'] ?? "No order found.")
-              : "No order found.",
-          type: DialogType.info,
-        );
-      } else {
-        await showCustomDialog(
-          "Failed to load order: ${response.statusCode}",
-          type: DialogType.error,
-        );
-      }
-    } catch (e) {
-      await showCustomDialog("Error fetching order: $e", type: DialogType.error);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
+
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+        backgroundColor: AppColors.primary,
         title: const Text(
           "Payment History",
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        backgroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : payments.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.receipt_long,
-                          size: 80, color: Colors.grey),
-                      const SizedBox(height: 12),
-                      Text(message),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: viewOrder,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 14, horizontal: 24),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: fetchPaymentHistory,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: payments.length,
+                    itemBuilder: (context, index) {
+                      final pay = payments[index];
+
+                      final animation = CurvedAnimation(
+                        parent: _controller,
+                        curve: Interval(
+                          (1 / payments.length) * index,
+                          1.0,
+                          curve: Curves.easeOut,
                         ),
-                        child: const Text(
-                          "View Order",
-                          style: TextStyle(
-                              color: AppColors.textLight,
-                              fontWeight: FontWeight.bold),
+                      );
+
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.1),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: _buildCard(pay),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                )
-              : ListView.builder(
-                  itemCount: payments.length,
-                  itemBuilder: (context, index) {
-                    final pay = payments[index];
-                    return ListTile(
-                      title: Text("Amount: ${pay["amount"]}"),
-                      subtitle: Text("Date: ${pay["created_at"]}"),
-                      trailing: Text(pay["status"]),
-                      onTap: viewOrder,
-                    );
-                  },
                 ),
+    );
+  }
+
+  
+
+ Widget _buildCard(dynamic pay) {
+  // ✅ MOVE LOGIC HERE (inside method)
+  final status = (pay["status"] ?? "").toString().toLowerCase();
+
+  Color statusColor;
+  Color bgColor;
+  String statusText;
+
+  switch (status) {
+    case "paid":
+      statusColor = Colors.green;
+      bgColor = Colors.green.withOpacity(0.12);
+      statusText = "PAID";
+      break;
+
+    case "pending":
+      statusColor = Colors.orange;
+      bgColor = Colors.orange.withOpacity(0.12);
+      statusText = "PENDING";
+      break;
+
+    case "cancelled":
+      statusColor = Colors.red;
+      bgColor = Colors.red.withOpacity(0.12);
+      statusText = "CANCELLED";
+      break;
+
+    default:
+      statusColor = Colors.grey;
+      bgColor = Colors.grey.withOpacity(0.12);
+      statusText = status.toUpperCase();
+  }
+
+  return GestureDetector(
+    onTap: () => openInvoice(pay),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // TOP ROW
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.receipt_long, size: 18, color: Colors.grey),
+                  SizedBox(width: 6),
+                  Text(
+                    "Invoice Payment",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+
+              // ✅ USE DYNAMIC STATUS HERE
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          Text(
+            "TZS ${formatMoney(pay["amount_to_pay"])}",
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              const Icon(Icons.tag, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Text(
+                "Ref: ${pay["reference"]}",
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Text(
+                "Due: ${pay["due_date"] ?? "N/A"}",
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.receipt_long,
+                size: 50,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "No Payments Found",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message.isEmpty
+                  ? "You haven't made any payments yet."
+                  : message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: fetchPaymentHistory,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Refresh"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
     );
   }
 }

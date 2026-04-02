@@ -27,9 +27,11 @@ class _EditPropertyScreenState extends State<EditPropertyScreen> {
 
   bool isSaving = false;
 
-  /// Backend host and port
-  final String _backendHost = 'http://213.199.45.65';
-  final int _backendPort = 9099;
+final String _baseUrl = 'https://morehomes.co.tz';
+String fixImageUrl(String url) {
+  if (url.startsWith('http')) return url;
+  return '$_baseUrl/$url'.replaceAll('//', '/');
+}
 
   @override
   void initState() {
@@ -43,18 +45,7 @@ class _EditPropertyScreenState extends State<EditPropertyScreen> {
   }
 
   /// Convert image URL properly
-  String _fixImageUrl(String url) {
-    if (url.contains('://')) {
-      final uri = Uri.parse(url);
-      if (uri.port == 80 || uri.port == 0) {
-        return '${uri.scheme}://${uri.host}:$_backendPort${uri.path}';
-      }
-      return url;
-    }
-    return '$_backendHost:$_backendPort/$url'
-        .replaceAll('//', '/')
-        .replaceFirst(':/', '://');
-  }
+ 
 
   Future<void> pickNewImage() async {
     final picker = ImagePicker();
@@ -176,7 +167,7 @@ class _EditPropertyScreenState extends State<EditPropertyScreen> {
             for (int i = 0; i < existingImages.length; i++)
               _imageBox(
                 size: size,
-                image: Image.network(_fixImageUrl(existingImages[i]), fit: BoxFit.cover),
+                image: Image.network(fixImageUrl(existingImages[i]), fit: BoxFit.cover),
                 onDelete: () => setState(() => existingImages.removeAt(i)),
               ),
 

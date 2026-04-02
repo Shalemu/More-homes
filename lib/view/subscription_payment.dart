@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
-import 'package:morehomesapp/view/order_details.dart';
+import 'package:morehomesapp/view/invoice_details.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../providers/auth_providers.dart';
 import '../theme/app_color.dart';
-import 'payment_web_view.dart';
+import 'payment_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -15,325 +15,282 @@ class SubscriptionScreen extends StatefulWidget {
   State<SubscriptionScreen> createState() => _SubscriptionScreenState();
 }
 
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  Map<String, dynamic>? order;
+class _SubscriptionScreenState extends State<SubscriptionScreen>
+    with SingleTickerProviderStateMixin {
+  Map<String, dynamic>? invoice;
   bool isLoading = true;
+
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
 
   @override
   void initState() {
     super.initState();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    if (!authProvider.isAuthenticated) {
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _fade = Tween(begin: 0.0, end: 1.0).animate(_controller);
+    _slide =
+        Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(_controller);
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    if (!auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("You must login to view subscriptions."),
-          ),
+          const SnackBar(content: Text("Please login first")),
         );
         Navigator.pop(context);
       });
     } else {
-      fetchSubscriptionOrder(authProvider.accessToken!);
+      fetchPendingInvoice(auth.accessToken!);
     }
   }
 
-Future<void> fetchSubscriptionOrder(String token) async {
-  setState(() => isLoading = true);
 
-  final url = Uri.parse(ApiConstants.paymentUrl); // Use constant from ApiConstants
+  Future<void> fetchPendingInvoice(String token) async {
+    setState(() => isLoading = true);
 
-  try {
-    final response = await http.get(
-      url,
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      final res = await http.get(
+        Uri.parse(ApiConstants.myInvoices),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final body = jsonDecode(res.body);
 
-      if (data['data'] != null && data['data'].isNotEmpty) {
-        order = data['data'][0]; // take the first order
+      if (res.statusCode == 200) {
+        final List list = body["data"] ?? [];
+
+        final pending = list
+            .where((e) => e["status"] == "pending")
+            .toList();
+
+        if (pending.isNotEmpty) {
+          pending.sort((a, b) =>
+              DateTime.parse(b["due_date"])
+                  .compareTo(DateTime.parse(a["due_date"])));
+
+          invoice = pending.first;
+        } else {
+          invoice = null;
+        }
       } else {
-        order = null;
+        invoice = null;
       }
-    } else if (response.statusCode == 404) {
-      // No orders found
-      order = null;
-    } else {
-      order = null;
-      debugPrint(
-          "Unexpected status code ${response.statusCode} fetching subscription order");
+    } catch (e) {
+      invoice = null;
+      debugPrint("Error: $e");
     }
-  } catch (e) {
-    order = null;
-    debugPrint("Error fetching subscription order: $e");
+
+    setState(() => isLoading = false);
+
+    if (invoice != null) {
+      _controller.forward();
+    }
   }
 
-  setState(() => isLoading = false);
-}
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    if (!authProvider.isAuthenticated) return const SizedBox.shrink();
+    final auth = Provider.of<AuthProvider>(context);
+    if (!auth.isAuthenticated) return const SizedBox();
 
     return Scaffold(
       appBar: AppBar(
+        title: const Text("Subscription",
+            style: TextStyle(color: Colors.white)),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          "Premium Subscription",
-          style: TextStyle(color: Colors.white),
-        ),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : order == null
-          ? _noSubscriptionUI()
-          : _subscriptionDetailUI(),
+          : invoice == null
+              ? _emptyUI()
+              : _invoiceUI(),
     );
   }
 
-  /// UI for no active subscription
-  Widget _noSubscriptionUI() {
+ 
+  Widget _emptyUI() {
     return Center(
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.star_border, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 12),
-          const Text(
-            "No Active Subscription",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.receipt_long, size: 80, color: Colors.grey),
+          SizedBox(height: 10),
           Text(
-            "Subscribe now to unlock premium features like advanced search, "
-            "exclusive property listings, and more!",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            "No Pending Invoice",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
 
-  /// UI for active subscription
-  Widget _subscriptionDetailUI() {
-    final bool isPaid = order!['is_paid'];
-    final String orderId = order!['order_id'];
-    final String amount = order!['amount'];
-    final String nextPayment = order!['next_payment_date'];
-    final String paymentUrl = order!['payment_gateway_url'];
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Premium Badge & Card
-          Stack(
+  Widget _invoiceUI() {
+    final bool isPaid = invoice!["status"] == "paid";
+    final String invoiceId = invoice!["uuid"];
+    final String amount = invoice!["amount_to_pay"];
+    final String dueDate = invoice!["due_date"];
+
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                "Your Subscription",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+        
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.orange.shade200.withOpacity(0.3),
-                      Colors.orange.shade100.withOpacity(0.2),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.shade300, width: 1),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.shade100.withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    )
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Premium Badge
+                    // HEADER
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          "Premium Subscription",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          "Invoice",
+                          style: TextStyle(color: Colors.grey),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade700,
+                            color: isPaid
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.orange.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            "PREMIUM",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Order ID
-                    _detailRow("Order ID", orderId),
-                    const SizedBox(height: 10),
-
-                    // Amount
-                    _detailRow("Amount", amount, valueColor: Colors.green),
-                    const SizedBox(height: 10),
-
-                    // Next Payment Date
-                    _detailRow("Next Payment", nextPayment),
-                    const SizedBox(height: 10),
-
-                    // Status Badge
-                    Row(
-                      children: [
-                        const Text("Status: ", style: TextStyle(fontSize: 16)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isPaid ? Colors.green : Colors.red,
-                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             isPaid ? "Paid" : "Pending",
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: isPaid
+                                  ? Colors.green
+                                  : Colors.orange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 12),
+
+                    // AMOUNT
+                    Text(
+                      "TZS $amount",
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    Text(
+                      "Due $dueDate",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+
+                    const Divider(height: 30),
+
+                    _row("Invoice ID", invoiceId),
+                    const SizedBox(height: 10),
+                    _row("Status", isPaid ? "Paid" : "Pending"),
                   ],
                 ),
               ),
+
+              const SizedBox(height: 30),
+
+         
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                InvoiceDetailScreen(invoice: invoice!),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text("View Details", style:TextStyle(color: AppColors.primary),),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  
+                ],
+              )
             ],
           ),
-
-          const SizedBox(height: 30),
-
-          // Buttons
-          Row(
-  children: [
-    // VIEW ORDER Button
-    Expanded(
-      child: ElevatedButton(
-        onPressed: order != null
-            ? () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => OrderDetailScreen(order: order!),
-                  ),
-                );
-              }
-            : null, // Disabled if no order
-        style: ElevatedButton.styleFrom(
-          backgroundColor: order != null ? AppColors.primary : Colors.grey,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 5,
         ),
-        child: const Text(
-          "View Order",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    ),
-
-    const SizedBox(width: 16),
-
-    // PAY NOW / PAID Button
-    Expanded(
-      child: ElevatedButton(
-        onPressed: (order != null && !isPaid)
-            ? () {
-                if (paymentUrl.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PaymentWebView(url: paymentUrl),
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Payment link is not available."),
-                    ),
-                  );
-                }
-              }
-            : null, // Disabled if already paid or no order
-        style: ElevatedButton.styleFrom(
-          backgroundColor: (order != null && !isPaid)
-              ? AppColors.primary
-              : Colors.grey,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 5,
-        ),
-        child: Text(
-          isPaid ? "Paid" : "Pay Now",
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    ),
-  ],
-)
-
-        ],
       ),
     );
   }
 
-  /// Helper to render a row detail
-  Widget _detailRow(String label, String value, {Color? valueColor}) {
+  //  ROW HELPER
+  Widget _row(String title, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 16)),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            color: valueColor ?? Colors.black87,
+        Text(title, style: const TextStyle(color: Colors.grey)),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ],

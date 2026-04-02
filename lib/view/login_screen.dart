@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:morehomesapp/services/token_storage.dart';
-import 'package:morehomesapp/view/forgot_password.dart';
-import 'package:morehomesapp/view/home_screen.dart';
-import 'package:morehomesapp/view/register_screen.dart';
-import 'package:provider/provider.dart';
+import 'package:morehomesapp/services/auth_services.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/widget/input_widget.dart';
-import 'package:morehomesapp/services/auth_services.dart';
-import 'dart:async';
+
+import 'package:morehomesapp/view/home_screen.dart';
+import 'package:morehomesapp/view/register_screen.dart';
+import 'package:morehomesapp/view/forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,59 +21,45 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  String? _message;
+  bool _isError = false;
 
   void _togglePasswordVisibility() {
     setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  void _showPopupNotification(String message, Color backgroundColor) {
-    final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 50,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () => overlayEntry.remove());
+  /// INLINE MESSAGE
+  void _showMessage(String message, {bool isError = false}) {
+    setState(() {
+      _message = message;
+      _isError = isError;
+    });
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _message = null);
+      }
+    });
   }
 
+  /// LOGIN FUNCTION
   Future<void> _login() async {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (username.isEmpty || password.isEmpty) {
-      _showPopupNotification(
-        "Please enter both username and password.",
-        Colors.orange,
-      );
+    /// VALIDATION
+    if (username.isEmpty && password.isEmpty) {
+      _showMessage("Email and password are required", isError: true);
+      return;
+    } else if (username.isEmpty) {
+      _showMessage("Email is required", isError: true);
+      return;
+    } else if (password.isEmpty) {
+      _showMessage("Password is required", isError: true);
       return;
     }
 
@@ -84,10 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (response.data == null) {
-          _showPopupNotification(
-            "Login failed: Missing user data.",
-            Colors.red,
-          );
+          _showMessage("Login failed. Try again", isError: true);
           return;
         }
 
@@ -106,37 +90,41 @@ class _LoginScreenState extends State<LoginScreen> {
 
         if (!mounted) return;
 
-        _showPopupNotification("Login successful!", Colors.green);
-        // Navigate with fade
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const HomeScreen(), // your HomeScreen
-            transitionsBuilder: (_, animation, __, child) =>
-                FadeTransition(opacity: animation, child: child),
-            transitionDuration: const Duration(milliseconds: 450),
-          ),
-        );
+        setState(() => _isLoading = false);
+
+       _showMessage("Signed in successfully");
+
+        /// DELAY BEFORE NAVIGATION
+        Future.delayed(const Duration(milliseconds: 800), () {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const HomeScreen(),
+              transitionsBuilder: (_, animation, __, child) =>
+                  FadeTransition(opacity: animation, child: child),
+              transitionDuration: const Duration(milliseconds: 250),
+            ),
+          );
+        });
       } else {
-        _showPopupNotification(
-          "Login failed: ${response.detail.isNotEmpty ? response.detail : 'Unknown error.'}",
-          Colors.redAccent,
-        );
+        _showMessage("Invalid email or password", isError: true);
       }
     } catch (e) {
-      _showPopupNotification("Login error: $e", Colors.redAccent);
+      _showMessage("Unable to login. Please try again", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _goToSignUp() => Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const RegisterScreen(),
-          transitionsBuilder: (_, animation, __, child) =>
-              FadeTransition(opacity: animation, child: child),
-          transitionDuration: const Duration(milliseconds: 450),
-        ),
-      );
+  void _goToSignUp() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const RegisterScreen(),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 400),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,9 +143,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 500),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(height: isSmall ? 10 : 30),
+
+                  /// LOGO
                   SizedBox(
                     height: size.height * 0.18,
                     child: FittedBox(
@@ -175,17 +164,65 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 25),
+
                   const Text(
                     'Welcome Back!',
-                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
                   ),
+
+                  /// 🔥 MESSAGE HERE
+                  if (_message != null) ...[
+                    const SizedBox(height: 12),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _isError
+                            ? Colors.red.shade50
+                            : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _isError
+                              ? Colors.red.shade300
+                              : Colors.green.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _isError
+                                ? Icons.error_outline
+                                : Icons.check_circle,
+                            color:
+                                _isError ? Colors.red : Colors.green,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _message!,
+                              style: TextStyle(
+                                color: _isError
+                                    ? Colors.red
+                                    : Colors.green,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 25),
+
+                  /// CARD
                   Container(
                     padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
@@ -203,12 +240,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         TextField(
                           controller: _usernameController,
-                          decoration: inputDecoration(
-                            'Username or Email',
-                            Icons.email,
-                          ),
+                          decoration:
+                              inputDecoration('Email', Icons.email),
                         ),
+
                         const SizedBox(height: 15),
+
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
@@ -225,10 +262,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
+
+                        const SizedBox(height: 5),
+
+                        /// FORGOT PASSWORD
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
+                            child: const Text(
+                              "Forgot Password?",
+                              style: TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             onPressed: () {
                               Navigator.push(
                                 context,
@@ -242,24 +289,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: child,
                                   ),
                                   transitionDuration:
-                                      const Duration(milliseconds: 450),
+                                      const Duration(milliseconds: 400),
                                 ),
                               );
                             },
-                            child: const Text(
-                              "Forgot Password?",
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                           ),
                         ),
+
                         const SizedBox(height: 25),
+
+                        /// LOGIN BUTTON
                         SizedBox(
                           width: double.infinity,
                           child: _isLoading
-                              ? const Center(child: CircularProgressIndicator())
+                              ? const Center(
+                                  child: CircularProgressIndicator(),
+                                )
                               : ElevatedButton(
                                   onPressed: _login,
                                   style: ElevatedButton.styleFrom(
@@ -268,7 +313,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       vertical: 15,
                                     ),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius:
+                                          BorderRadius.circular(12),
                                     ),
                                   ),
                                   child: const Text(
@@ -281,7 +327,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                         ),
+
                         const SizedBox(height: 20),
+
+                        /// REGISTER
                         GestureDetector(
                           onTap: _goToSignUp,
                           child: const Text.rich(
@@ -302,6 +351,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
+
                   SizedBox(height: isSmall ? 20 : 40),
                 ],
               ),

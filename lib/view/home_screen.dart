@@ -12,7 +12,7 @@ import 'profile_screen.dart';
 import 'add_property_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
-    // ✔️ Check if user is OWNER (group ID = 3)
+    //  Check if user is OWNER (group ID = 3)
     bool isOwner = false;
     bool canAddProperty = false;
 
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
       canAddProperty = user.groups.contains(3);
     }
 
-    // ✔️ SCREENS based on role
+  
     final screens = [
       const PropertyListScreen(),
       if (isOwner) const OwnerFeedbackScreen(),
@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const ProfileScreen(),
     ];
 
-    // ✔️ TITLES based on role
+  
     final titles = [
       'More Homes',
       if (isOwner) 'Feedback',
@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'Profile',
     ];
 
-    // ✔️ NAVBAR based on role
+   
     final navItems = [
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_rounded),
@@ -137,10 +137,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-      // ------------------ MAIN SCREEN ------------------
+   
       body: screens[_selectedIndex],
 
-      // ------------------ BOTTOM NAV ------------------
+  
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,

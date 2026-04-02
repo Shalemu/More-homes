@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:morehomesapp/view/about_app_screen.dart';
 import 'package:morehomesapp/view/change_password_screen.dart';
 import 'package:morehomesapp/view/help_support_screen.dart';
+import 'package:morehomesapp/view/invoice_screen%20.dart';
 import 'package:morehomesapp/view/payment_history.dart';
 import 'package:morehomesapp/view/privacy_policy_screen.dart';
 import 'package:morehomesapp/view/subscription_payment.dart';
@@ -198,10 +199,7 @@ class ProfileScreen extends StatelessWidget {
                                     );
                                   },
                                 ),
-                                _profileMenuItem(
-                                  icon: Icons.notifications_none,
-                                  text: "Notifications",
-                                ),
+                         
                                 _profileMenuItem(
                                   icon: Icons.info_outline,
                                   text: "About App",
@@ -264,14 +262,28 @@ class ProfileScreen extends StatelessWidget {
                                   icon: Icons.payment_outlined,
                                   text: "Subscription Payments",
                                   requiresLogin: true,
+                                  onTap: () {
+                                    Provider.of<AuthProvider>(
+                                          context,
+                                          listen: false,
+                                        );
+
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SubscriptionScreen(
+                                         
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                                 _profileMenuItem(
                                   icon: Icons.history,
                                   text: "Payment History",
                                   requiresLogin: true,
                                   onTap: () {
-                                    final authProvider =
-                                        Provider.of<AuthProvider>(
+                                    Provider.of<AuthProvider>(
                                           context,
                                           listen: false,
                                         );
@@ -280,26 +292,14 @@ class ProfileScreen extends StatelessWidget {
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => PaymentHistoryScreen(
-                                          orderId: null,
-                                          userId: authProvider.user!.uuid,
+                                         
                                         ),
                                       ),
                                     );
                                   },
                                 ),
 
-                                // _profileMenuItem(
-                                //   icon: Icons.language,
-                                //   text: "Language",
-                                //   onTap: () {
-                                //     Navigator.push(
-                                //       context,
-                                //       MaterialPageRoute(
-                                //         builder: (_) => const LanguageScreen(),
-                                //       ),
-                                //     );
-                                //   },
-                                // ),
+                        
                               ],
                             ),
                           ),

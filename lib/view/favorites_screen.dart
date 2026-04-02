@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:morehomesapp/view/home_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/property_provider.dart';
@@ -9,24 +10,23 @@ import 'property_details_screen.dart';
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({Key? key}) : super(key: key);
 
-    final String _backendHost = 'http://213.199.45.65';
   final int _backendPort = 9099;
-String _fixImageUrl(String url) {
-  try {
-    if (url.startsWith('http')) {
-      // Already a full URL, return as is
+  String _fixImageUrl(String url) {
+    try {
+      if (url.startsWith('http')) {
+        // Already a full URL, return as is
+        return url;
+      } else {
+        // Relative path from backend
+        return 'http://$_backendPort:$_backendPort/$url'
+            .replaceAll('//', '/')
+            .replaceFirst(':/', '://');
+      }
+    } catch (e) {
+      debugPrint('Error fixing image URL ($url): $e');
       return url;
-    } else {
-      // Relative path from backend
-      return 'http://$_backendHost:$_backendPort/$url'
-          .replaceAll('//', '/')
-          .replaceFirst(':/', '://');
     }
-  } catch (e) {
-    debugPrint('Error fixing image URL ($url): $e');
-    return url;
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -37,13 +37,13 @@ String _fixImageUrl(String url) {
       return const Center(child: Text('No favorites yet!'));
     }
     return WillPopScope(
-    onWillPop: () async {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen()), 
-      (route) => false, // remove all previous routes
-    );
-    return false; // prevent default pop
-  },
+      onWillPop: () async {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false, // remove all previous routes
+        );
+        return false; // prevent default pop
+      },
       child: Scaffold(
         body: GridView.builder(
           padding: const EdgeInsets.all(12),
@@ -58,14 +58,14 @@ String _fixImageUrl(String url) {
             final prop = favoriteProperties[index];
 
             // Determine the image to show
-          String? imageUrl = prop.thumbnail;
-                            if (imageUrl == null || imageUrl.isEmpty) {
-                              if (prop.images.isNotEmpty) {
-                                imageUrl = _fixImageUrl(prop.images.first);
-                              }
-                            } else {
-                              imageUrl = _fixImageUrl(imageUrl);
-                            }
+            String? imageUrl = prop.thumbnail;
+            if (imageUrl == null || imageUrl.isEmpty) {
+              if (prop.images.isNotEmpty) {
+                imageUrl = _fixImageUrl(prop.images.first);
+              }
+            } else {
+              imageUrl = _fixImageUrl(imageUrl);
+            }
 
             Widget imageWidget;
             if (imageUrl != null && imageUrl.isNotEmpty) {
@@ -164,10 +164,14 @@ String _fixImageUrl(String url) {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                prop.price,
-                                style: TextStyle(
+                                NumberFormat.currency(
+                                  symbol: "TZS ",
+                                  decimalDigits: 0,
+                                ).format(double.tryParse(prop.price) ?? 0),
+                                style: const TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 14,
                                 ),
                               ),
                               const SizedBox(height: 2),

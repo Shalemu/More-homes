@@ -38,9 +38,7 @@ Future<void> _pay() async {
   setState(() => isLoading = true);
 
   try {
-    /// =========================
-    /// STEP 1: SUBSCRIBE
-    /// =========================
+
     final result = await _service.subscribe(
       token: auth.accessToken!,
       planUuid: widget.planId,
@@ -48,6 +46,7 @@ Future<void> _pay() async {
 
     if (result["success"] != true) {
       QuickAlert.show(
+        // ignore: use_build_context_synchronously
         context: context,
         type: QuickAlertType.error,
         text: result["message"] ?? "Subscription failed",
@@ -60,6 +59,7 @@ Future<void> _pay() async {
 
     if (invoiceUuid == null || invoiceUuid.isEmpty) {
       QuickAlert.show(
+        // ignore: use_build_context_synchronously
         context: context,
         type: QuickAlertType.error,
         text: "Invoice UUID missing",

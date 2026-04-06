@@ -7,18 +7,38 @@ class PaymentService {
   final http.Client _client = http.Client();
 
   // =========================
+  // SAFE JSON PARSER
+  // =========================
+  Map<String, dynamic> _parseResponse(http.Response res) {
+    try {
+      return jsonDecode(res.body);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  String _getMessage(Map<String, dynamic> body) {
+    return (body["detail"] ?? body["message"] ?? "").toString();
+  }
+
+  // =========================
   // GET PLANS
   // =========================
   Future<List<PlanModel>> getPlans(String token) async {
     final res = await _client.get(
       Uri.parse(ApiConstants.plans),
-      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
     );
 
-    final body = jsonDecode(res.body);
+    final body = _parseResponse(res);
 
     if (res.statusCode != 200) {
-      throw Exception(body["detail"] ?? "Failed to load plans");
+      throw Exception(_getMessage(body).isNotEmpty
+          ? _getMessage(body)
+          : "Failed to load plans");
     }
 
     final List list = body["data"] ?? [];
@@ -32,16 +52,24 @@ class PaymentService {
   Future<Map<String, dynamic>> checkEligibility(String token) async {
     final res = await _client.get(
       Uri.parse(ApiConstants.checkEligibility),
-      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
     );
 
-    final body = jsonDecode(res.body);
+    final body = _parseResponse(res);
 
-    return {"status": res.statusCode, "data": body};
+    return {
+      "success": res.statusCode == 200,
+      "status": res.statusCode,
+      "data": body,
+      "message": _getMessage(body),
+    };
   }
 
   // =========================
-  // SUBSCRIBE TO PLAN (FIXED LOGIC)
+  // SUBSCRIBE
   // =========================
   Future<Map<String, dynamic>> subscribe({
     required String token,
@@ -49,29 +77,29 @@ class PaymentService {
   }) async {
     final res = await _client.post(
       Uri.parse(ApiConstants.subscribe(planUuid)),
-      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
     );
 
-    final body = jsonDecode(res.body);
+    final body = _parseResponse(res);
 
     final int statusCode = body["status_code"] ?? res.statusCode;
-    final String message = (body["detail"] ?? body["message"] ?? "").toString();
+    final String message = _getMessage(body).toLowerCase();
 
-    // =========================
-    // SUCCESS
-    // =========================
+ 
     if (res.statusCode == 200 && statusCode == 200) {
       return {
         "success": true,
         "invoice_uuid": body["invoice_uuid"] ?? body["data"]?["uuid"],
         "message": message,
+        "data": body,
       };
     }
 
-    // =========================
-    // ACTIVE SUBSCRIPTION
-    // =========================
-    if (message.toLowerCase().contains("active subscription")) {
+
+    if (message.contains("active subscription")) {
       return {
         "success": false,
         "already_subscribed": true,
@@ -80,9 +108,17 @@ class PaymentService {
       };
     }
 
-    // =========================
-    // ERROR
-    // =========================
+
+    if (message.contains("invoice cancelled")) {
+      return {
+        "success": false,
+        "cancelled": true,
+        "message": message,
+        "data": body,
+      };
+    }
+
+
     return {
       "success": false,
       "message": message.isNotEmpty ? message : "Subscription failed",
@@ -99,20 +135,25 @@ class PaymentService {
   ) async {
     final res = await _client.get(
       Uri.parse(ApiConstants.invoiceDetail(invoiceUuid)),
-      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
+      headers: {
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      },
     );
 
-    final body = jsonDecode(res.body);
+    final body = _parseResponse(res);
 
     if (res.statusCode != 200) {
-      throw Exception(body["detail"] ?? "Failed to load invoice");
+      throw Exception(_getMessage(body).isNotEmpty
+          ? _getMessage(body)
+          : "Failed to load invoice");
     }
 
     return body;
   }
 
   // =========================
-  // MAKE PAYMENT (M-PESA / MOBILE MONEY)
+  // MAKE PAYMENT
   // =========================
   Future<Map<String, dynamic>> makePayment({
     required String token,
@@ -129,18 +170,37 @@ class PaymentService {
       body: jsonEncode({"phone": phone}),
     );
 
-    final body = jsonDecode(res.body);
+    final body = _parseResponse(res);
+    final String message = _getMessage(body).toLowerCase();
 
+    
     if (res.statusCode == 200 || res.statusCode == 201) {
-      return {"success": true, "data": body};
+      return {
+        "success": true,
+        "message": message,
+        "data": body,
+      };
     }
 
-    throw Exception(body["message"] ?? "Payment failed");
+
+    if (message.contains("invoice cancelled")) {
+      return {
+        "success": false,
+        "cancelled": true,
+        "message": message,
+        "data": body,
+      };
+    }
+
+ 
+    return {
+      "success": false,
+      "message": message.isNotEmpty ? message : "Payment failed",
+      "data": body,
+    };
   }
 
-  // =========================
-  // DISPOSE
-  // =========================
+
   void dispose() {
     _client.close();
   }

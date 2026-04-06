@@ -9,7 +9,6 @@ import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/utils/navigation_helper.dart';
-import 'package:morehomesapp/view/invoice_screen%20.dart';
 import 'package:provider/provider.dart';
 
 class PlansScreen extends StatefulWidget {

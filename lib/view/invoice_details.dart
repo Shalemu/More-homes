@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/core/app_dialog.dart';
+import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:morehomesapp/view/help_support_screen.dart';
 import 'package:morehomesapp/view/payment_screen.dart';
+import 'package:provider/provider.dart';
 
 /// Premium Invoice Detail Screen (UI unchanged)
 
@@ -22,7 +28,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _slideAnim;
   late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnim;
 
   @override
   void initState() {
@@ -48,9 +53,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
       duration: const Duration(milliseconds: 1400),
     );
 
-    _pulseAnim = Tween<double>(begin: 0.98, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
 
     _entryController.forward();
     _pulseController.repeat(reverse: true);
@@ -192,6 +194,48 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     );
   }
 
+    Future<void> _initiatePayment(String invoiceId, String phone) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final token = authProvider.accessToken;
+
+      final url = ApiConstants.makePayment(invoiceId);
+
+      AppDialog.loading(context, message: "Sending STK push...");
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"phone_number": phone}),
+      );
+
+      if (Navigator.canPop(context)) Navigator.pop(context);
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        AppDialog.success(
+          // ignore: use_build_context_synchronously
+          context,
+          message:
+              data["detail"] ??
+              "STK push sent. Check your phone to complete payment.",
+        );
+
+        // fetchInvoices(); 
+      } else {
+        AppDialog.error(context, message: data["detail"] ?? "Payment failed");
+      }
+    } catch (e) {
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      AppDialog.error(context, message: "Error: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Map<String, dynamic> invoice = widget.invoice;
@@ -325,28 +369,18 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                     child: SizedBox(
                       height: 56,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          AppDialog.payment(
-                            context,
-                            invoiceId: orderId,
-                            onPay: (phone) {
-                          
-
-                              AppDialog.loading(context);
-
-                              // Example:
-                              Future.delayed(const Duration(seconds: 2), () {
-                                Navigator.pop(context); // close loading
-
-                                AppDialog.success(
-                                  // ignore: use_build_context_synchronously
-                                  context,
-                                  message: "Payment request sent to $phone",
-                                );
-                              });
+                           onPressed: () {
+                              AppDialog.payment(
+                                context,
+                                invoiceId: invoice["uuid"].toString(),
+                                onPay: (phone) {
+                                  _initiatePayment(
+                                    invoice["uuid"].toString(),
+                                    phone,
+                                  );
+                                },
+                              );
                             },
-                          );
-                        },
                         icon: const Icon(Icons.payment, color: Colors.white),
                         label: const Text(
                           'Pay Now',

@@ -7,7 +7,7 @@ import 'package:morehomesapp/models/feedback_model.dart';
 import 'package:morehomesapp/models/min_property_model.dart';
 import 'package:morehomesapp/services/payment_service.dart';
 import 'package:morehomesapp/theme/app_color.dart';
-import 'package:morehomesapp/utils/navigation_helper.dart';
+// import 'package:morehomesapp/utils/navigation_helper.dart';
 import 'package:morehomesapp/view/login_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,6 +15,8 @@ import '../models/property_model.dart';
 import '../providers/auth_providers.dart';
 import '../providers/feedback_provider.dart';
 import '../providers/property_provider.dart';
+import 'invoice_screen .dart';
+import 'plans_screen.dart';
 
 class PropertyDetailScreen extends StatefulWidget {
   final PropertyModel property;
@@ -219,80 +221,126 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   Future<void> _handleContactOwner(
-    BuildContext context,
-    PropertyModel property,
-  ) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  BuildContext context,
+  PropertyModel property,
+) async {
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    debugPrint("CONTACT BUTTON CLICKED");
-    debugPrint("AUTH STATUS: ${authProvider.isAuthenticated}");
+  debugPrint("CONTACT BUTTON CLICKED");
+  debugPrint("AUTH STATUS: ${authProvider.isAuthenticated}");
 
-    if (!authProvider.isAuthenticated) {
-      debugPrint("USER NOT AUTHENTICATED → OPEN LOGIN");
+  // =========================
+  // 1. CHECK AUTH
+  // =========================
+  if (!authProvider.isAuthenticated) {
+    debugPrint("USER NOT AUTHENTICATED → OPEN LOGIN");
 
-      AppDialog.loginRequired(
+    AppDialog.loginRequired(
+      context,
+      onLogin: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => LoginScreen()),
+        );
+      },
+    );
+    return;
+  }
+
+  try {
+    final service = PaymentService();
+
+    debugPrint("CALLING checkEligibility API...");
+
+    final response = await service.checkEligibility(
+      authProvider.accessToken!,
+    );
+
+    debugPrint("FULL RESPONSE: $response");
+
+    final Map<String, dynamic> data = Map<String, dynamic>.from(
+      response["data"] ?? {},
+    );
+
+    // =========================
+    // 2. SAFE PARSING
+    // =========================
+    final rawCanOpen = data["can_open_contact"];
+
+    final bool canOpen =
+        rawCanOpen == true ||
+        rawCanOpen == 1 ||
+        rawCanOpen.toString().toLowerCase() == "true" ||
+        rawCanOpen.toString() == "1";
+
+    final String path =
+        (data["path"] ?? "").toString().toLowerCase().trim();
+
+    debugPrint("PARSED DATA: $data");
+    debugPrint("canOpen = $canOpen");
+    debugPrint("path = $path");
+
+    // =========================
+    // 3. ALLOWED → OPEN CONTACT
+    // =========================
+    if (canOpen) {
+      debugPrint("ALLOW CONTACT ACCESS");
+      _showUploaderDialog(context);
+      return;
+    }
+
+    // =========================
+    // 4. BLOCKED → ROUTE BY STATE
+    // =========================
+    if (path.isEmpty) {
+      debugPrint("EMPTY PATH → SHOW ERROR");
+      AppDialog.error(context);
+      return;
+    }
+
+    // =========================
+    // 5. HANDLE SUBSCRIBE STATE
+    // =========================
+    if (path.contains("subscribe")) {
+      debugPrint("REDIRECT → PLANS SCREEN");
+
+      Navigator.push(
         context,
-        onLogin: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => LoginScreen()),
-          );
-        },
+        MaterialPageRoute(builder: (_) => const PlansScreen()),
       );
       return;
     }
 
-    try {
-      final service = PaymentService();
+    // =========================
+    // 6. HANDLE INVOICE STATE
+    // =========================
+    if (path.contains("invoice")) {
+      debugPrint("REDIRECT → INVOICE SCREEN");
 
-      debugPrint("CALLING checkEligibility API...");
-
-      final response = await service.checkEligibility(
-        authProvider.accessToken!,
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const InvoiceScreen()),
       );
-
-      debugPrint("FULL RESPONSE: $response");
-
-      final Map<String, dynamic> data = Map<String, dynamic>.from(
-        response["data"] ?? {},
-      );
-
-      final rawCanOpen = data["can_open_contact"];
-
-      final bool canOpen =
-          rawCanOpen == true ||
-          rawCanOpen.toString().toLowerCase() == "true" ||
-          rawCanOpen == 1 ||
-          rawCanOpen.toString() == "1";
-
-      final String path = (data["path"] ?? "").toString().toLowerCase().trim();
-
-      debugPrint("PARSED DATA: $data");
-      debugPrint("canOpen = $canOpen");
-      debugPrint("path = $path");
-
-      if (canOpen) {
-        debugPrint("ALLOW CONTACT ACCESS");
-        _showUploaderDialog(context);
-        return;
-      }
-
-      debugPrint("USER NOT ELIGIBLE → NAVIGATING: $path");
-
-      if (path.isEmpty) {
-        debugPrint("EMPTY PATH → STOP");
-        AppDialog.error(context);
-        return;
-      }
-
-      handleNavigation(context, path);
-    } catch (e, stackTrace) {
-      debugPrint("ERROR: $e");
-      debugPrint(stackTrace.toString());
-
-      AppDialog.error(context);
+      return;
     }
+
+    // =========================
+    // 7. UNKNOWN STATE (SAFE FALLBACK)
+    // =========================
+    debugPrint("UNKNOWN PATH STATE: $path");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("You are not eligible to contact owner."),
+      ),
+    );
+  } catch (e, stackTrace) {
+    debugPrint("ERROR in _handleContactOwner: $e");
+    debugPrint(stackTrace.toString());
+
+    AppDialog.error(context);
   }
+}
 
   Future<void> _sendMessage(
     PropertyModel property,

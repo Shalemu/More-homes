@@ -249,6 +249,24 @@ static void error(
     );
   }
 
+  static void confirmAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmText,
+  required VoidCallback onConfirm,
+}) {
+  _showSheet(
+    context,
+    icon: Icons.info_outline,
+    iconColor: AppColors.primary,
+    title: title,
+    message: message,
+    confirmText: confirmText,
+    onConfirm: onConfirm,
+  );
+}
+
   static void _showSheet(
     BuildContext context, {
     required IconData icon,

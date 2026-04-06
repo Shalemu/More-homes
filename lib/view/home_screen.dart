@@ -7,7 +7,7 @@ import '../theme/app_color.dart';
 import 'property_list_screen.dart';
 import 'owner_feedback_screen.dart';
 import 'favorites_screen.dart';
-import 'settings_screen.dart';
+import 'plans_screen.dart';
 import 'profile_screen.dart';
 import 'add_property_screen.dart';
 
@@ -27,9 +27,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Fetch properties for logged-in users
     Future.microtask(() {
-      final token = Provider.of<AuthProvider>(context, listen: false).accessToken;
+      final token = Provider.of<AuthProvider>(
+        context,
+        listen: false,
+      ).accessToken;
       if (token != null) {
-        Provider.of<PropertyProvider>(context, listen: false).fetchProperties(token);
+        Provider.of<PropertyProvider>(
+          context,
+          listen: false,
+        ).fetchProperties(token);
       }
     });
   }
@@ -51,25 +57,22 @@ class _HomeScreenState extends State<HomeScreen> {
       canAddProperty = user.groups.contains(3);
     }
 
-  
     final screens = [
       const PropertyListScreen(),
       if (isOwner) const OwnerFeedbackScreen(),
       const FavoritesScreen(),
-      const SettingsScreen(),
+      const PlansScreen(),
       const ProfileScreen(),
     ];
 
-  
     final titles = [
       'More Homes',
       if (isOwner) 'Feedback',
       'Favorites',
-      'Settings',
+      'Plans',
       'Profile',
     ];
 
-   
     final navItems = [
       const BottomNavigationBarItem(
         icon: Icon(Icons.home_rounded),
@@ -86,9 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
         icon: Icon(Icons.favorite_rounded),
         label: 'Favorites',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.settings_rounded),
-        label: 'Settings',
+      BottomNavigationBarItem(
+        icon: Icon(Icons.subscriptions), // or Icons.payment
+        label: 'Plans',
       ),
       const BottomNavigationBarItem(
         icon: Icon(Icons.person_rounded),
@@ -137,10 +140,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-   
       body: screens[_selectedIndex],
 
-  
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,

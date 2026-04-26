@@ -21,14 +21,14 @@ import 'package:morehomesapp/config/app_routes.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize providers before app starts
   final authProvider = AuthProvider();
+
+  // Load session only (no routing logic here)
   await authProvider.loadUserFromPrefs();
 
-  // Enable edge-to-edge UI (fix Play Store warning)
+  // UI setup
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-  // Optional: Transparent system bars
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -36,65 +36,73 @@ void main() async {
     ),
   );
 
-  runApp(
-    MultiProvider(
+  runApp(MyApp(authProvider: authProvider));
+}
+
+class MyApp extends StatelessWidget {
+  final AuthProvider authProvider;
+
+  const MyApp({super.key, required this.authProvider});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => authProvider),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => PropertyProvider()),
         ChangeNotifierProvider(create: (_) => FeedbackProvider()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
       ],
-      child: const MyApp(),
-    ),
-  );
+      child: const AppRoot(),
+    );
+  }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<LanguageProvider>(
-      builder: (context, langProvider, _) {
-        return MaterialApp(
-          title: 'More Homes',
-          debugShowCheckedModeBanner: false,
+    final lang = Provider.of<LanguageProvider>(context);
 
-          // Localization
-          locale: langProvider.locale,
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+    return MaterialApp(
+      title: 'More Homes',
+      debugShowCheckedModeBanner: false,
 
-          // Theme
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          ),
+      // Localization
+      locale: lang.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
 
-          // Navigation
-          initialRoute: AppRoutes.splash,
-          routes: {
-            AppRoutes.splash: (context) => const SplashScreen(),
-            AppRoutes.login: (context) => const LoginScreen(),
-            AppRoutes.registration: (context) => const RegisterScreen(),
-            AppRoutes.home: (context) => const HomeScreen(),
-          },
+      // Theme
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+      ),
 
-          // Dynamic routes
-          onGenerateRoute: (settings) {
-            if (settings.name == AppRoutes.propertyDetail) {
-              final property = settings.arguments as PropertyModel;
-              return MaterialPageRoute(
-                builder: (_) => PropertyDetailScreen(property: property),
-              );
-            }
-            return null;
-          },
-        );
+      
+      home: const SplashScreen(),
+
+      // Routes
+      routes: {
+        AppRoutes.login: (context) => const LoginScreen(),
+        AppRoutes.registration: (context) => const RegisterScreen(),
+        AppRoutes.home: (context) => const HomeScreen(),
+      },
+
+      // Dynamic route
+      onGenerateRoute: (settings) {
+        if (settings.name == AppRoutes.propertyDetail) {
+          final property = settings.arguments as PropertyModel;
+          return MaterialPageRoute(
+            builder: (_) => PropertyDetailScreen(property: property),
+          );
+        }
+        return null;
       },
     );
   }

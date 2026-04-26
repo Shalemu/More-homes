@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
+import 'package:morehomesapp/view/changePlan_screen.dart';
 import 'package:morehomesapp/view/help_support_screen.dart';
 import 'package:morehomesapp/view/payment_screen.dart';
 import 'package:provider/provider.dart';
@@ -52,7 +53,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     );
-
 
     _entryController.forward();
     _pulseController.repeat(reverse: true);
@@ -194,7 +194,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     );
   }
 
-    Future<void> _initiatePayment(String invoiceId, String phone) async {
+  Future<void> _initiatePayment(String invoiceId, String phone) async {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final token = authProvider.accessToken;
@@ -226,7 +226,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
               "STK push sent. Check your phone to complete payment.",
         );
 
-        // fetchInvoices(); 
+        // fetchInvoices();
       } else {
         AppDialog.error(context, message: data["detail"] ?? "Payment failed");
       }
@@ -357,67 +357,107 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
                 const SizedBox(height: 22),
 
-                // PAY BUTTON (ONLY LOGIC CHANGED)
-                if (!isPaid)
-                  ScaleTransition(
-                    scale: Tween<double>(begin: 0.98, end: 1.0).animate(
-                      CurvedAnimation(
-                        parent: _entryController,
-                        curve: Curves.easeOut,
-                      ),
-                    ),
-                    child: SizedBox(
-                      height: 56,
-                      child: ElevatedButton.icon(
-                           onPressed: () {
-                              AppDialog.payment(
-                                context,
-                                invoiceId: invoice["uuid"].toString(),
-                                onPay: (phone) {
-                                  _initiatePayment(
-                                    invoice["uuid"].toString(),
-                                    phone,
-                                  );
-                                },
-                              );
-                            },
-                        icon: const Icon(Icons.payment, color: Colors.white),
-                        label: const Text(
-                          'Pay Now',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E8F7A),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green),
-                        SizedBox(width: 8),
-                        Text("Invoice Paid"),
-                      ],
-                    ),
-                  ),
+                Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch, // 👈 FULL WIDTH
+  children: [
+    // =========================
+    // PAY / PAID STATE
+    // =========================
+    if (!isPaid)
+      ScaleTransition(
+        scale: Tween<double>(begin: 0.98, end: 1.0).animate(
+          CurvedAnimation(
+            parent: _entryController,
+            curve: Curves.easeOut,
+          ),
+        ),
+        child: SizedBox(
+          height: 56,
+          width: double.infinity, // 👈 FORCE FULL WIDTH
+          child: ElevatedButton.icon(
+            onPressed: () {
+              AppDialog.payment(
+                context,
+                invoiceId: invoice["uuid"].toString(),
+                onPay: (phone) {
+                  _initiatePayment(
+                    invoice["uuid"].toString(),
+                    phone,
+                  );
+                },
+              );
+            },
+            icon: const Icon(Icons.payment, color: Colors.white),
+            label: const Text(
+              'Pay Now',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E8F7A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      )
+    else
+      Container(
+        height: 56, // 👈 SAME HEIGHT AS BUTTON
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text(
+              "Invoice Paid",
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
 
+    const SizedBox(height: 12),
+
+    // =========================
+    // CHANGE PLAN (ALWAYS)
+    // =========================
+    SizedBox(
+      height: 50,
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ChangeplanScreen(), // keep simple
+            ),
+          );
+        },
+        icon: const Icon(Icons.swap_horiz),
+        label: const Text("Change Plan"),
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    ),
+
+    const SizedBox(height: 24),
+  ],
+),
                 const SizedBox(height: 24),
 
-                // SUPPORT (UNCHANGED UI)
+                // SUPPORT
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -462,6 +502,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                   ),
                 ),
               ],
+            
             ),
           ),
         ),

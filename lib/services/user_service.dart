@@ -7,9 +7,7 @@ import '../models/user_model.dart';
 class UserService {
   final http.Client _client = http.Client();
 
-  // ==============================
   // Fetch Logged-in User
-  // ==============================
   Future<ApiResponse<UserModel>> fetchLoggedInUser(String accessToken) async {
     try {
       final response = await _client.get(
@@ -44,7 +42,7 @@ class UserService {
     }
   }
 
-  // ==============================
+
   // Update Profile
   // ==============================
   Future<ApiResponse<UserModel>> updateProfile(

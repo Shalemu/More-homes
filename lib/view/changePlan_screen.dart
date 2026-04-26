@@ -11,17 +11,19 @@ import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/utils/navigation_helper.dart';
 import 'package:provider/provider.dart';
 
-class PlansScreen extends StatefulWidget {
-  const PlansScreen({Key? key}) : super(key: key);
+class ChangeplanScreen extends StatefulWidget {
+  const ChangeplanScreen({Key? key, this.sourceInvoiceId}) : super(key: key);
+  final String? sourceInvoiceId;
 
   @override
-  State<PlansScreen> createState() => _PlansScreenState();
+  State<ChangeplanScreen> createState() => _ChangeplanScreenState();
 }
 
-class _PlansScreenState extends State<PlansScreen> {
+class _ChangeplanScreenState extends State<ChangeplanScreen> {
   List<dynamic> plans = [];
   int selectedIndex = 0;
   final formatter = NumberFormat("#,##0", "en_US");
+  
 
   bool isLoading = true;
   String? error;
@@ -59,12 +61,20 @@ class _PlansScreenState extends State<PlansScreen> {
     }
   }
 
-Future<void> subscribeToPlan(String planUuid) async {
+Future<void> changePlan(String planUuid) async {
   try {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final token = authProvider.accessToken;
 
+    print("CHANGE PLAN REQUEST");
+    print("PLAN UUID: $planUuid");
+    print("TOKEN: $token");
+    print("URL: ${ApiConstants.changePlan(planUuid)}");
+  
+
     if (token == null || token.isEmpty) {
+      print("No token found - user not logged in");
+
       AppDialog.loginRequired(
         context,
         onLogin: () {
@@ -74,15 +84,28 @@ Future<void> subscribeToPlan(String planUuid) async {
       return;
     }
 
+    final url = Uri.parse(ApiConstants.changePlan(planUuid));
+
+    print("Sending POST request...");
+    
     final response = await http.post(
-      Uri.parse(ApiConstants.subscribe(planUuid)),
+      url,
       headers: {
         "Accept": "application/json",
         "Authorization": "Bearer $token",
       },
     );
 
+    print("RESPONSE RECEIVED ");
+    print("STATUS CODE: ${response.statusCode}");
+    print("BODY: ${response.body}");
+
+
     final data = json.decode(response.body);
+
+    print("PARSED JSON ");
+    print(data);
+   
 
     final String path =
         (data["path"] ?? "plans").toString().toLowerCase();
@@ -90,16 +113,20 @@ Future<void> subscribeToPlan(String planUuid) async {
     final String message =
         (data["detail"] ?? "").toString().toLowerCase();
 
-    debugPrint("SUBSCRIBE RESPONSE: $data");
+    print("PATH: $path");
+    print("MESSAGE: $message");
 
-
+    // SUCCESS CONDITION
     if (response.statusCode == 200 || data["status_code"] == 200) {
+      print("SUCCESS: Plan changed successfully");
       handleNavigation(context, path);
       return;
     }
 
-
+    // ACTIVE SUBSCRIPTION CASE
     if (message.contains("active subscription")) {
+      print("⚠️ACTIVE SUBSCRIPTION DETECTED");
+
       AppDialog.redirectToInvoice(
         context,
         onViewInvoice: () {
@@ -109,9 +136,19 @@ Future<void> subscribeToPlan(String planUuid) async {
       return;
     }
 
+    // GENERIC ERROR
+    print(" ERROR: ${message.isEmpty ? "Failed request" : message}");
 
-    AppDialog.error(context, message: message.isEmpty ? "Failed" : message);
-  } catch (e) {
+    AppDialog.error(
+      context,
+      message: message.isEmpty ? "Failed" : message,
+    );
+  } catch (e, stackTrace) {
+    print("========== EXCEPTION ==========");
+    print("ERROR: $e");
+    print("STACKTRACE: $stackTrace");
+    print("================================");
+
     AppDialog.error(context, message: "Network error: $e");
   }
 }
@@ -317,10 +354,10 @@ Future<void> subscribeToPlan(String planUuid) async {
                           ),
                           onPressed: () {
                             final plan = plans[selectedIndex];
-                            subscribeToPlan(plan["uuid"]);
+                            changePlan(plan["uuid"]);
                           },
                           child: const Text(
-                            "Subscribe Now",
+                            "Change Plan",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),

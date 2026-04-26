@@ -58,9 +58,12 @@ class ApiConstants {
 
   /// Dynamic: Make payment
   static String makePayment(String invoiceId) =>
-      "$baseUrl/payment/make-payment/$invoiceId";
+  "$baseUrl/payment/make-payment/$invoiceId";
 
+  //change plans
 
+static String changePlan(String planUuid) =>
+  "$baseUrl/payment/changes-subscription/$planUuid";
 
 }
 

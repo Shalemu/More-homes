@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'package:morehomesapp/theme/app_color.dart';
+import 'package:morehomesapp/providers/auth_providers.dart';
+import 'package:morehomesapp/view/home_screen.dart';
+import 'package:morehomesapp/view/login_screen.dart';
 import 'package:morehomesapp/view/onboarding_screen.dart';
+import 'package:morehomesapp/utils/app_session.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,72 +18,112 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _fadeAnimation;
-  late final Animation<double> _scaleAnimation;
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
 
-  int _currentDot = 0;
+  int _dotIndex = 0;
   Timer? _dotTimer;
 
   @override
   void initState() {
     super.initState();
 
-    // LOGO ANIMATION
+  
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
 
-    _fadeAnimation = CurvedAnimation(
+    _fade = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeIn,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.9,
-      end: 1.05,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutBack,
-      ),
+    _scale = Tween<double>(begin: 0.9, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
 
     _controller.forward();
 
-    // LOADING DOTS ANIMATION
+
     _dotTimer = Timer.periodic(
       const Duration(milliseconds: 300),
-      (timer) {
+      (_) {
         if (!mounted) return;
         setState(() {
-          _currentDot = (_currentDot + 1) % 3;
+          _dotIndex = (_dotIndex + 1) % 3;
         });
       },
     );
 
-    // NAVIGATION
-    Future.delayed(const Duration(seconds: 3), _goToNextScreen);
+ 
+    Future.delayed(const Duration(seconds: 2), _navigateUser);
   }
 
-  void _goToNextScreen() {
-    if (!mounted) return;
+Future<void> _navigateUser() async {
+  if (!mounted) return;
 
+  final auth = Provider.of<AuthProvider>(context, listen: false);
+
+  // Load session
+  await auth.loadUserFromPrefs();
+
+  // First install check
+  final isFirstInstall = await AppSession.isFirstInstall();
+
+  if (isFirstInstall) {
+    await AppSession.setNotFirstInstall();
+    _go(const OnboardingScreen());
+    return;
+  }
+
+  // Not logged in
+  if (!auth.isAuthenticated) {
+    _go(const LoginScreen());
+    return;
+  }
+
+  // Check token validity
+  final isValid = await auth.checkAuthStatus();
+
+  if (!isValid) {
+    _go(const LoginScreen());
+    return;
+  }
+
+  // Logged in and valid
+  _go(const HomeScreen());
+}
+
+  void _go(Widget screen) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const OnboardingScreen(),
+        pageBuilder: (_, __, ___) => screen,
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeInOut,
-            ),
+            opacity: animation,
             child: child,
           );
         },
         transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  // ---------------- DOT UI ----------------
+  Widget _dot(int index) {
+    final active = _dotIndex == index;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      width: active ? 12 : 8,
+      height: active ? 12 : 8,
+      decoration: BoxDecoration(
+        color: active ? Colors.white : Colors.white54,
+        shape: BoxShape.circle,
       ),
     );
   }
@@ -89,21 +135,6 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  Widget _buildDot(int index) {
-    final bool isActive = _currentDot == index;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: isActive ? 12 : 8,
-      height: isActive ? 12 : 8,
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.white54,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,14 +144,13 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // LOGO (ANIMATED)
               AnimatedBuilder(
                 animation: _controller,
-                builder: (context, child) {
+                builder: (_, child) {
                   return Opacity(
-                    opacity: _fadeAnimation.value,
+                    opacity: _fade.value,
                     child: Transform.scale(
-                      scale: _scaleAnimation.value,
+                      scale: _scale.value,
                       child: child,
                     ),
                   );
@@ -129,7 +159,6 @@ class _SplashScreenState extends State<SplashScreen>
                   'assets/logo/logo.png',
                   width: 180,
                   height: 180,
-                  fit: BoxFit.contain,
                   color: Colors.white,
                   colorBlendMode: BlendMode.srcIn,
                 ),
@@ -137,10 +166,9 @@ class _SplashScreenState extends State<SplashScreen>
 
               const SizedBox(height: 32),
 
-              // LOADING INDICATOR (INSTANT)
               Row(
                 mainAxisSize: MainAxisSize.min,
-                children: List.generate(3, _buildDot),
+                children: List.generate(3, _dot),
               ),
             ],
           ),

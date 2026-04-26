@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/widget/input_widget.dart';
 import 'package:morehomesapp/models/user_model.dart';
+import 'package:morehomesapp/widget/top_notification.dart';
 import '../services/auth_services.dart';
 import '../config/app_routes.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -19,7 +20,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController(text: '+255 ');
   final _locationController = TextEditingController();
   final _passwordController = TextEditingController();
-
 
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -55,85 +55,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  void _showPopupNotification(String message, Color backgroundColor) {
-    final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: 50,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 3), () => overlayEntry.remove());
-  }
+  void validatePhone(String digits, BuildContext context) {
+  if (digits.length < 9) return;
 
-Future<void> _register() async {
+  if (digits.length == 9) {
+    TopNotification.show(
+      context,
+      message: "Valid phone number",
+      color: Colors.green,
+      icon: Icons.check_circle,
+    );
+  } else {
+    TopNotification.show(
+      context,
+      message: "Invalid phone number",
+      color: Colors.redAccent,
+      icon: Icons.error_outline,
+    );
+  }
+}
+  Future<void> _register() async {
   final firstName = _firstNameController.text.trim();
   final lastName = _lastNameController.text.trim();
   final email = _emailController.text.trim();
   final location = _locationController.text.trim();
   final password = _passwordController.text.trim();
 
-  // Remove all spaces
   String phone = _phoneController.text.replaceAll(' ', '').trim();
 
-  // Normalize phone to +255XXXXXXXXX
+  // Normalize phone
   if (phone.startsWith('0')) {
-    // e.g., 07xxxxxxx or 06xxxxxxx => +2557xxxxxxx
     phone = '+255${phone.substring(1)}';
   } else if (phone.startsWith('255')) {
-    // e.g., 2557xxxxxxx => +2557xxxxxxx
     phone = '+$phone';
   } else if (!phone.startsWith('+255')) {
-    // Any other format, just prefix +255
     phone = '+255$phone';
   }
 
-  // Debug: print formatted phone
   debugPrint("Phone after formatting: $phone");
 
-  // Validate phone: must start with +255 and have exactly 9 digits after
+  // Validate phone
   if (!RegExp(r'^\+255\d{9}$').hasMatch(phone)) {
-    _showPopupNotification(
-      'Phone number must start with +255 and have 9 digits after +255',
-      Colors.redAccent,
+    TopNotification.show(
+      context,
+      message: "Invalid phone number format",
+      color: Colors.redAccent,
+      icon: Icons.error_outline,
     );
-    debugPrint("Phone validation failed for: $phone");
     return;
   }
 
+  // Validate empty fields
   if ([firstName, lastName, email, phone, location, password].any((e) => e.isEmpty)) {
-    _showPopupNotification("Please fill in all fields.", Colors.redAccent);
+    TopNotification.show(
+      context,
+      message: "Please fill in all fields",
+      color: Colors.redAccent,
+      icon: Icons.error_outline,
+    );
     return;
   }
 
   if (_selectedRoleId == null) {
-    _showPopupNotification("Please select a user type.", Colors.redAccent);
+    TopNotification.show(
+      context,
+      message: "Please select a user type",
+      color: Colors.redAccent,
+      icon: Icons.error_outline,
+    );
     return;
   }
 
@@ -151,31 +140,61 @@ Future<void> _register() async {
       groups: [_selectedRoleId!],
     );
 
-    // Debug: print full user object
-    debugPrint("User object to send: ${user.toJson()}");
+    debugPrint("User object: ${user.toJson()}");
 
     final authService = AuthService();
     final response = await authService.register(data: user);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
-      _showPopupNotification("Registration successful!", AppColors.primary);
-      Future.delayed(const Duration(seconds: 1), () {
+      TopNotification.show(
+        context,
+        message: "Registration successful",
+        color: AppColors.primary,
+        icon: Icons.check_circle,
+      );
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       });
+    } else {
+      TopNotification.show(
+        context,
+        message: "Registration failed. Try again",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
     }
   } catch (e, stackTrace) {
     debugPrint('Register error: $e\n$stackTrace');
-    _showPopupNotification(e.toString(), Colors.redAccent);
+
+    TopNotification.show(
+      context,
+      message: "Something went wrong. Please try again",
+      color: Colors.redAccent,
+      icon: Icons.error_outline,
+    );
   } finally {
     if (mounted) setState(() => _isLoading = false);
   }
 }
+
   String? selectedRoleName() {
     final role = _roles.firstWhere(
       (r) => r['id'] == _selectedRoleId,
       orElse: () => {},
     );
     return role['name']?.toString();
+  }
+    IconData _roleIcon(String role) {
+    final r = role.toLowerCase();
+    if (r.contains('premium') || r.contains('vip')) {
+      return Icons.workspace_premium;
+    }
+    if (r.contains('agent') || r.contains('pro')) {
+      return Icons.verified;
+    }
+    return Icons.person;
   }
 
   @override
@@ -202,7 +221,6 @@ Future<void> _register() async {
                     width: MediaQuery.of(context).size.width * 0.45,
                     height: MediaQuery.of(context).size.width * 0.45,
                     child: Image.asset(
-                       
                       'assets/logo/logo.png',
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
@@ -211,7 +229,9 @@ Future<void> _register() async {
                           child: Text(
                             'More Homes',
                             style: TextStyle(
-                              fontSize: MediaQuery.of(context).size.width < 400 ? 24 : 34,
+                              fontSize: MediaQuery.of(context).size.width < 400
+                                  ? 24
+                                  : 34,
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                               letterSpacing: 1.1,
@@ -233,29 +253,148 @@ Future<void> _register() async {
                   ),
                   const SizedBox(height: 20),
 
-                  // Role Selection
+                           /// ROLE SECTION (PREMIUM UI)
                   _isLoadingRoles
-                      ? const Center(child: CircularProgressIndicator())
-                      : Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _roles.map((role) {
-                            return _UserTypeCheckbox(
-                              label: role['name'].toString().toUpperCase(),
-                              selected: _selectedRoleId == role['id'],
-                              onTap: () => setState(() => _selectedRoleId = role['id']),
-                            );
-                          }).toList(),
+                      ? const CircularProgressIndicator()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            /// TITLE + REQUIRED STAR
+                            Row(
+                              children: const [
+                                Text(
+                                  "Select Account Type",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(width: 5),
+                                Text(
+                                  "*",
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            /// SINGLE ROW SCROLLABLE
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: _roles.map((role) {
+                                  final isSelected =
+                                      _selectedRoleId == role['id'];
+                                  final name = role['name'].toString();
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedRoleId = role['id'];
+                                      });
+                                    },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      width: 160,
+                                      margin: const EdgeInsets.only(right: 12),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppColors.primary.withOpacity(
+                                                0.12,
+                                              )
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppColors.primary
+                                              : Colors.grey.shade300,
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                        boxShadow: [
+                                          if (isSelected)
+                                            BoxShadow(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.2),
+                                              blurRadius: 10,
+                                              offset: const Offset(0, 5),
+                                            ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          /// ICON + CHECK
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Icon(
+                                                _roleIcon(name),
+                                                color: isSelected
+                                                    ? AppColors.primary
+                                                    : Colors.grey,
+                                              ),
+                                              if (isSelected)
+                                                const Icon(
+                                                  Icons.check_circle,
+                                                  color: AppColors.primary,
+                                                  size: 18,
+                                                ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 10),
+
+                                          /// ROLE NAME (FROM BACKEND)
+                                          Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isSelected
+                                                  ? AppColors.primary
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
                         ),
                   const SizedBox(height: 20),
 
                   // Form fields
-                  _buildTextField(_firstNameController, 'First Name', Icons.person),
-                  _buildTextField(_lastNameController, 'Last Name', Icons.person_outline),
+                  _buildTextField(
+                    _firstNameController,
+                    'First Name',
+                    Icons.person,
+                  ),
+                  _buildTextField(
+                    _lastNameController,
+                    'Last Name',
+                    Icons.person_outline,
+                  ),
                   _buildTextField(_emailController, 'Email', Icons.email),
                   _buildPhoneField(),
-                  _buildTextField(_locationController, 'Location', Icons.location_on),
+                  _buildTextField(
+                    _locationController,
+                    'Location',
+                    Icons.location_on,
+                  ),
                   _buildPasswordField(),
 
                   // Show service charge only for owners
@@ -316,8 +455,12 @@ Future<void> _register() async {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: TextField(
@@ -350,8 +493,14 @@ Future<void> _register() async {
           decoration: inputDecoration('Phone Number', Icons.phone),
           onChanged: (value) {
             String digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-            if (digits.startsWith('255')) digits = digits.substring(3);
-            if (digits.length > 9) digits = digits.substring(0, 9);
+
+            if (digits.startsWith('255')) {
+              digits = digits.substring(3);
+            }
+
+            if (digits.length > 9) {
+              digits = digits.substring(0, 9);
+            }
 
             String formatted = '';
             for (int i = 0; i < digits.length; i++) {
@@ -359,9 +508,13 @@ Future<void> _register() async {
               if (i == 2 || i == 5) formatted += ' ';
             }
 
-            _phoneController.text = '+255 $formatted';
-            _phoneController.selection = TextSelection.fromPosition(
-              TextPosition(offset: _phoneController.text.length),
+            String finalText = '+255 $formatted'.trim();
+
+            if (_phoneController.text == finalText) return;
+
+            _phoneController.value = TextEditingValue(
+              text: finalText,
+              selection: TextSelection.collapsed(offset: finalText.length),
             );
           },
         ),

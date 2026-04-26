@@ -1,85 +1,109 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:morehomesapp/services/auth_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
+
+import 'package:morehomesapp/models/user_model.dart';
+import 'package:morehomesapp/services/auth_services.dart';
 
 class AuthProvider with ChangeNotifier {
   UserModel? _user;
   String? _accessToken;
+  int? _tokenExpiry;
 
   bool _isLoading = false;
-  bool get isLoading => _isLoading;
 
+  // GETTERS 
   UserModel? get user => _user;
   String? get accessToken => _accessToken;
-  bool get isAuthenticated => _accessToken != null && _accessToken!.isNotEmpty;
+  bool get isLoading => _isLoading;
 
-  // -------------------------------
-  // Login and save user info locally
-  // -------------------------------
-  Future<void> login(UserModel user, String access, String refresh) async {
-    _isLoading = true;
-    notifyListeners();
+  bool get isAuthenticated =>
+      _accessToken != null &&
+      _accessToken!.isNotEmpty &&
+      _isTokenValid();
+
+  // TOKEN VALIDATION
+  bool _isTokenValid() {
+    if (_tokenExpiry == null) return false;
+    return DateTime.now().millisecondsSinceEpoch < _tokenExpiry!;
+  }
+
+  // LOGIN 
+  Future<void> login(
+    UserModel user,
+    String access,
+    String refresh, {
+    int? expiresInSeconds,
+  }) async {
+    _setLoading(true);
 
     _user = user;
     _accessToken = access;
 
+    // default expiry = 24h if backend doesn't provide it
+    _tokenExpiry = DateTime.now()
+        .add(Duration(seconds: expiresInSeconds ?? 86400))
+        .millisecondsSinceEpoch;
+
     final prefs = await SharedPreferences.getInstance();
+
     await prefs.setString('user', json.encode(user.toJson()));
     await prefs.setString('access', access);
     await prefs.setString('refresh', refresh);
+    await prefs.setInt('expiry', _tokenExpiry!);
 
-    _isLoading = false;
-    notifyListeners();
+    _setLoading(false);
   }
 
-  // -------------------------------
-  // Load user info from SharedPreferences
-  // -------------------------------
+  // LOAD SESSION 
   Future<void> loadUserFromPrefs() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
 
     final prefs = await SharedPreferences.getInstance();
+
     final userData = prefs.getString('user');
     final access = prefs.getString('access');
     final refresh = prefs.getString('refresh');
+    final expiry = prefs.getInt('expiry');
 
     if (userData != null && access != null && refresh != null) {
       _user = UserModel.fromJson(json.decode(userData));
       _accessToken = access;
+      _tokenExpiry = expiry;
     }
 
-    _isLoading = false;
-    notifyListeners();
+    _setLoading(false);
   }
 
-  // -------------------------------
-  // Update user info locally
-  // -------------------------------
+  //CHECK SESSION 
+Future<bool> checkAuthStatus() async {
+  if (!_isTokenValid()) {
+    await logout();
+    return false;
+  }
+
+  return true;
+}
+
+  // UPDATE USER 
   Future<void> updateUser(UserModel updatedUser) async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
 
     _user = updatedUser;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user', json.encode(updatedUser.toJson()));
 
-    _isLoading = false;
-    notifyListeners();
+    _setLoading(false);
   }
 
-  // -------------------------------
-  // Change Password
-  // -------------------------------
+  //CHANGE PASSWORD 
   Future<Map<String, dynamic>> changePassword({
     required String oldPassword,
     required String newPassword,
     required String confirmPassword,
   }) async {
-    if (_accessToken == null || _accessToken!.isEmpty) {
+    if (_accessToken == null || !_isTokenValid()) {
       return {
         'success': false,
         'message': 'Session expired. Please login again.',
@@ -96,7 +120,6 @@ class AuthProvider with ChangeNotifier {
     );
 
     if (response.statusCode == 200) {
-      // response.detail is non-nullable, no need for ??
       return {
         'success': true,
         'message': response.detail,
@@ -109,18 +132,26 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // -------------------------------
-  // Logout user
-  // -------------------------------
+  // LOGOUT
   Future<void> logout() async {
+    _setLoading(true);
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user');
     await prefs.remove('access');
     await prefs.remove('refresh');
+    await prefs.remove('expiry');
 
     _user = null;
     _accessToken = null;
+    _tokenExpiry = null;
 
+    _setLoading(false);
+  }
+
+  // INTERNAL
+  void _setLoading(bool value) {
+    _isLoading = value;
     notifyListeners();
   }
 }

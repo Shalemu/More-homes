@@ -56,128 +56,136 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void validatePhone(String digits, BuildContext context) {
-  if (digits.length < 9) return;
+    if (digits.length < 9) return;
 
-  if (digits.length == 9) {
-    TopNotification.show(
-      context,
-      message: "Valid phone number",
-      color: Colors.green,
-      icon: Icons.check_circle,
-    );
-  } else {
-    TopNotification.show(
-      context,
-      message: "Invalid phone number",
-      color: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-  }
-}
-  Future<void> _register() async {
-  final firstName = _firstNameController.text.trim();
-  final lastName = _lastNameController.text.trim();
-  final email = _emailController.text.trim();
-  final location = _locationController.text.trim();
-  final password = _passwordController.text.trim();
-
-  String phone = _phoneController.text.replaceAll(' ', '').trim();
-
-  // Normalize phone
-  if (phone.startsWith('0')) {
-    phone = '+255${phone.substring(1)}';
-  } else if (phone.startsWith('255')) {
-    phone = '+$phone';
-  } else if (!phone.startsWith('+255')) {
-    phone = '+255$phone';
-  }
-
-  debugPrint("Phone after formatting: $phone");
-
-  // Validate phone
-  if (!RegExp(r'^\+255\d{9}$').hasMatch(phone)) {
-    TopNotification.show(
-      context,
-      message: "Invalid phone number format",
-      color: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-    return;
-  }
-
-  // Validate empty fields
-  if ([firstName, lastName, email, phone, location, password].any((e) => e.isEmpty)) {
-    TopNotification.show(
-      context,
-      message: "Please fill in all fields",
-      color: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-    return;
-  }
-
-  if (_selectedRoleId == null) {
-    TopNotification.show(
-      context,
-      message: "Please select a user type",
-      color: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final user = UserModel(
-      uuid: '',
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      phone: phone,
-      location: location,
-      password: password,
-      groups: [_selectedRoleId!],
-    );
-
-    debugPrint("User object: ${user.toJson()}");
-
-    final authService = AuthService();
-    final response = await authService.register(data: user);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (digits.length == 9) {
       TopNotification.show(
         context,
-        message: "Registration successful",
-        color: AppColors.primary,
+        message: "Valid phone number",
+        color: Colors.green,
         icon: Icons.check_circle,
       );
-
-      Future.delayed(const Duration(seconds: 2), () {
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
-      });
     } else {
       TopNotification.show(
         context,
-        message: "Registration failed. Try again",
+        message: "Invalid phone number",
         color: Colors.redAccent,
         icon: Icons.error_outline,
       );
     }
-  } catch (e, stackTrace) {
-    debugPrint('Register error: $e\n$stackTrace');
-
-    TopNotification.show(
-      context,
-      message: "Something went wrong. Please try again",
-      color: Colors.redAccent,
-      icon: Icons.error_outline,
-    );
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
+
+  Future<void> _register() async {
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final location = _locationController.text.trim();
+    final password = _passwordController.text.trim();
+
+    String phone = _phoneController.text.replaceAll(' ', '').trim();
+
+    // Normalize phone
+    if (phone.startsWith('0')) {
+      phone = '+255${phone.substring(1)}';
+    } else if (phone.startsWith('255')) {
+      phone = '+$phone';
+    } else if (!phone.startsWith('+255')) {
+      phone = '+255$phone';
+    }
+
+    debugPrint("Phone after formatting: $phone");
+
+    // Validate phone
+    if (!RegExp(r'^\+255\d{9}$').hasMatch(phone)) {
+      TopNotification.show(
+        context,
+        message: "Invalid phone number format",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
+
+    // Validate empty fields
+    if ([
+      firstName,
+      lastName,
+      email,
+      phone,
+      location,
+      password,
+    ].any((e) => e.isEmpty)) {
+      TopNotification.show(
+        context,
+        message: "Please fill in all fields",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
+
+    if (_selectedRoleId == null) {
+      TopNotification.show(
+        context,
+        message: "Please select a user type",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final user = UserModel(
+        uuid: '',
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: phone,
+        location: location,
+        password: password,
+        groups: [_selectedRoleId!],
+      );
+
+      debugPrint("User object: ${user.toJson()}");
+
+      final authService = AuthService();
+      final response = await authService.register(data: user);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        TopNotification.show(
+          context,
+          message: "Registration successful",
+          color: AppColors.primary,
+          icon: Icons.check_circle,
+        );
+
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!mounted) return;
+          Navigator.pushReplacementNamed(context, AppRoutes.login);
+        });
+      } else {
+        TopNotification.show(
+          context,
+          message: "Registration failed. Try again",
+          color: Colors.redAccent,
+          icon: Icons.error_outline,
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Register error: $e\n$stackTrace');
+
+      TopNotification.show(
+        context,
+        message: "Something went wrong. Please try again",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   String? selectedRoleName() {
     final role = _roles.firstWhere(
@@ -186,7 +194,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     return role['name']?.toString();
   }
-    IconData _roleIcon(String role) {
+
+  IconData _roleIcon(String role) {
     final r = role.toLowerCase();
     if (r.contains('premium') || r.contains('vip')) {
       return Icons.workspace_premium;
@@ -253,33 +262,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                           /// ROLE SECTION (PREMIUM UI)
+                  /// ROLE SECTION (PREMIUM UI)
                   _isLoadingRoles
                       ? const CircularProgressIndicator()
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            /// TITLE + REQUIRED STAR
-                            Row(
-                              children: const [
-                                Text(
-                                  "Select Account Type",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(width: 5),
-                                Text(
-                                  "*",
-                                  style: TextStyle(
-                                    color: Colors.red,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.center,
+                            //   children: const [
+                            //     Text(
+                            //       "Select Account Type",
+                            //       style: TextStyle(
+                            //         fontSize: 18,
+                            //         fontWeight: FontWeight.bold,
+                            //       ),
+                            //     ),
+                            //     SizedBox(width: 5),
+                            //     Text(
+                            //       "*",
+                            //       style: TextStyle(
+                            //         color: Colors.red,
+                            //         fontSize: 20,
+                            //         fontWeight: FontWeight.bold,
+                            //       ),
+                            //     ),
+                            //   ],
+                            // ),
 
                             const SizedBox(height: 15),
 
@@ -300,72 +309,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     },
                                     child: AnimatedContainer(
                                       duration: const Duration(
-                                        milliseconds: 250,
+                                        milliseconds: 200,
                                       ),
-                                      width: 160,
-                                      margin: const EdgeInsets.only(right: 12),
-                                      padding: const EdgeInsets.all(14),
+                                      margin: const EdgeInsets.only(right: 10),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: isSelected
-                                            ? AppColors.primary.withOpacity(
-                                                0.12,
-                                              )
+                                            ? AppColors.primary
                                             : Colors.white,
-                                        borderRadius: BorderRadius.circular(18),
+                                        borderRadius: BorderRadius.circular(
+                                          10,
+                                        ), // pill shape
                                         border: Border.all(
                                           color: isSelected
                                               ? AppColors.primary
                                               : Colors.grey.shade300,
-                                          width: isSelected ? 2 : 1,
                                         ),
-                                        boxShadow: [
-                                          if (isSelected)
-                                            BoxShadow(
-                                              color: AppColors.primary
-                                                  .withOpacity(0.2),
-                                              blurRadius: 10,
-                                              offset: const Offset(0, 5),
-                                            ),
-                                        ],
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          /// ICON + CHECK
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Icon(
-                                                _roleIcon(name),
-                                                color: isSelected
-                                                    ? AppColors.primary
-                                                    : Colors.grey,
-                                              ),
-                                              if (isSelected)
-                                                const Icon(
-                                                  Icons.check_circle,
-                                                  color: AppColors.primary,
-                                                  size: 18,
-                                                ),
-                                            ],
+                                          Icon(
+                                            _roleIcon(name),
+                                            size: 16,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : Colors.grey,
                                           ),
+                                          const SizedBox(width: 6),
 
-                                          const SizedBox(height: 10),
-
-                                          /// ROLE NAME (FROM BACKEND)
                                           Text(
                                             name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
                                               color: isSelected
-                                                  ? AppColors.primary
-                                                  : Colors.black,
+                                                  ? Colors.white
+                                                  : Colors.black87,
                                             ),
                                           ),
+
+                                          if (isSelected) ...[
+                                            const SizedBox(width: 6),
+                                            const Icon(
+                                              Icons.check,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),

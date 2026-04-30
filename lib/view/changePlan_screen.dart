@@ -34,33 +34,105 @@ class _ChangeplanScreenState extends State<ChangeplanScreen> {
     fetchPlans();
   }
 
-  Future<void> fetchPlans() async {
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.plans),
-        headers: {"Accept": "application/json"},
-      );
+String getGroupName(int groupId) {
+  switch (groupId) {
+    case 1:
+      return "Owner";
+    case 2:
+      return "Customer";
+    case 3:
+      return "Broker";
+    default:
+      return "";
+  }
+}
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          plans = data["data"] ?? [];
-          isLoading = false;
-        });
+  Future<void> fetchPlans() async {
+  try {
+    debugPrint("Fetching plans from API...");
+
+    // get token from AuthProvider
+    final authProvider = context.read<AuthProvider>();
+    final token = authProvider.accessToken;
+
+    debugPrint("Access Token: $token");
+
+    final response = await http.get(
+      Uri.parse(ApiConstants.plans),
+      headers: {
+        "Accept": "application/json",
+        if (token != null && token.isNotEmpty)
+          "Authorization": "Bearer $token",
+      },
+    );
+
+    debugPrint("Status Code: ${response.statusCode}");
+    debugPrint("Raw Response: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+
+      debugPrint("Decoded Data: $data");
+
+      final user = authProvider.user;
+
+      String userGroupName = "";
+
+      if (user == null) {
+        debugPrint("No user found in AuthProvider");
       } else {
-        setState(() {
-          error = "Failed to load plans";
-          isLoading = false;
-        });
+        debugPrint("User Data: ${user.toJson()}");
+        debugPrint("User Group IDs: ${user.groups}");
+
+        if (user.groups.isNotEmpty) {
+          final groupId = user.groups.first;
+          userGroupName = getGroupName(groupId);
+
+          debugPrint("Group ID: $groupId");
+          debugPrint("Mapped Group Name: $userGroupName");
+        } else {
+          debugPrint("User has no groups assigned");
+        }
       }
-    } catch (e) {
+
+      debugPrint("Final Group Used for Filtering: $userGroupName");
+
+      final allPlans = data["data"] ?? [];
+      debugPrint("Total Plans from API: ${allPlans.length}");
+
+      final filteredPlans = allPlans.where((plan) {
+        final planGroup = plan["group_name"]?.toString() ?? "";
+
+        debugPrint("Checking Plan: ${plan["name"]} - Group: $planGroup");
+        return planGroup.toLowerCase() ==
+            userGroupName.toLowerCase();
+      }).toList();
+
+      debugPrint("Filtered Plans Count: ${filteredPlans.length}");
+
       setState(() {
-        error = e.toString();
+        plans = filteredPlans;
+        isLoading = false;
+        error = null;
+      });
+
+    } else {
+      debugPrint("Failed with status: ${response.statusCode}");
+
+      setState(() {
+        error = "Failed to load plans";
         isLoading = false;
       });
     }
-  }
+  } catch (e) {
+    debugPrint("Error while fetching plans: $e");
 
+    setState(() {
+      error = e.toString();
+      isLoading = false;
+    });
+  }
+}
 Future<void> changePlan(String planUuid) async {
   try {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);

@@ -38,25 +38,25 @@ class ApiConstants {
   static const String saveFeedback = "$baseUrl/homes/property-feedbacks/"; //save property feedbacks
 
 
-  /// Check if user can access contact
+  // Check if user can access contact
   static const String checkEligibility =
       "$baseUrl/payment/check-eligibility?subscribe_url=subscribe&invoice_url=invoice";
 
-  /// Get all plans
+  // Get all plans
   static const String plans = "$baseUrl/payment/plans";
 
-  /// Get all user invoices
+  // Get all user invoices
   static const String myInvoices = "$baseUrl/payment/invoices/me";
 
-  /// Dynamic: Subscribe to plan
+  // Dynamic: Subscribe to plan
   static String subscribe(String planUuid) =>
       "$baseUrl/payment/subscribe/$planUuid";
 
-  /// Dynamic: Get invoice detail
+  // Dynamic: Get invoice detail
   static String invoiceDetail(String invoiceId) =>
       "$baseUrl/payment/invoice/$invoiceId";
 
-  /// Dynamic: Make payment
+  // Dynamic: Make payment
   static String makePayment(String invoiceId) =>
   "$baseUrl/payment/make-payment/$invoiceId";
 

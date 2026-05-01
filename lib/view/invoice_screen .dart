@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
@@ -17,11 +19,17 @@ class InvoiceScreen extends StatefulWidget {
 class _InvoiceScreenState extends State<InvoiceScreen> {
   List invoices = [];
   bool loading = true;
+  late AnimationController _controller;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     fetchInvoices();
+    
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    if (mounted) setState(() {});
+  });
   }
 
   Future<void> fetchInvoices() async {
@@ -84,17 +92,89 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
               "STK push sent. Check your phone to complete payment.",
         );
 
-        fetchInvoices(); 
+        fetchInvoices();
+ 
       } else {
+        // ignore: use_build_context_synchronously
         AppDialog.error(context, message: data["detail"] ?? "Payment failed");
       }
     } catch (e) {
+      // ignore: use_build_context_synchronously
       if (Navigator.canPop(context)) Navigator.pop(context);
+      // ignore: use_build_context_synchronously
       AppDialog.error(context, message: "Error: $e");
     }
   }
 
-  
+  @override
+  void dispose() {
+    _controller.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String formatDateTime(String? date) {
+    if (date == null || date.isEmpty) return "N/A";
+
+    try {
+      final parsed = DateTime.parse(date);
+      return DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
+      // Example: 01 May 2026, 02:30 PM
+    } catch (e) {
+      return date;
+    }
+  }
+
+  String getSmartCountdown(String? date) {
+    if (date == null || date.isEmpty) return "00:00:00";
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return "Expired";
+
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final minutes = diff.inMinutes % 60;
+      final seconds = diff.inSeconds % 60;
+
+      String time =
+          "${hours.toString().padLeft(2, '0')}:"
+          "${minutes.toString().padLeft(2, '0')}:"
+          "${seconds.toString().padLeft(2, '0')}";
+
+      if (days > 0) {
+        return "$days ${days == 1 ? 'Day' : 'Days'} $time";
+      } else {
+        return time;
+      }
+    } catch (e) {
+      return "00:00:00";
+    }
+  }
+
+  Color getExpiryColor(String? date) {
+    if (date == null || date.isEmpty) return Colors.grey;
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return Colors.red;
+
+      if (diff.inHours < 1) return Colors.red;
+      if (diff.inHours < 24) return Colors.orange;
+
+      return Colors.green;
+    } catch (e) {
+      return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,11 +279,23 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "Due: ${inv["due_date"] ?? ""}",
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
+                                  "Due: ${formatDateTime(inv["due_date"])}",
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                                SizedBox(height: 6),
+
+                                Row(
+                                  children: [
+                                    const Icon(Icons.timer, size: 14),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      getSmartCountdown(inv["due_date"]),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: getExpiryColor(inv["due_date"]),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

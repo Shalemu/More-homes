@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/models/banner_model.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/property_model.dart';
 import '../providers/property_provider.dart';
 import '../providers/auth_providers.dart';
 import '../theme/app_color.dart';
 import 'property_details_screen.dart';
+import 'login_screen.dart';
 
 Color getCategoryColor(String category) {
   switch (category.toLowerCase()) {
@@ -67,8 +69,7 @@ class _PropertyListScreenState extends State<PropertyListScreen>
         final banners = list.map((e) => BannerModel.fromJson(e)).toList();
 
         for (var banner in banners) {
-           print("🟢 Banner -> image: ${banner.image}");
-
+          print(" Banner -> image: ${banner.image}");
         }
 
         return banners;
@@ -98,14 +99,31 @@ class _PropertyListScreenState extends State<PropertyListScreen>
       listen: false,
     );
 
-    final token = Provider.of<AuthProvider>(context, listen: false).accessToken;
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    final token = auth.accessToken;
 
     if (token != null) {
-      propertyProvider.fetchProperties(token).then((_) {
-        if (mounted) {
-          _animationController.forward();
-        }
-      });
+      propertyProvider
+          .fetchProperties(token)
+          .then((_) {
+            if (mounted) {
+              _animationController.forward();
+            }
+          })
+          .catchError((e) async {
+            if (e.toString().contains("unauthorized")) {
+              await auth.logout();
+
+              if (!mounted) return;
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            }
+          });
     }
   }
 
@@ -130,8 +148,39 @@ class _PropertyListScreenState extends State<PropertyListScreen>
     });
   }
 
+  Future<void> saveBannersLocally(List<BannerModel> banners) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final jsonList = banners.map((e) => e.toJson()).toList();
+
+    await prefs.setString('cached_banners', jsonEncode(jsonList));
+  }
+
+  Future<List<BannerModel>> loadBannersLocally() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final data = prefs.getString('cached_banners');
+
+    if (data == null) return [];
+
+    final List decoded = jsonDecode(data);
+
+    return decoded.map((e) => BannerModel.fromJson(e)).toList();
+  }
+
   Future<void> loadBanners() async {
     try {
+      final cached = await loadBannersLocally();
+
+      if (cached.isNotEmpty && mounted) {
+        setState(() {
+          banners = cached;
+          isLoadingBanners = false;
+        });
+
+        startAutoScroll();
+      }
+
       final result = await fetchBanners();
 
       if (!mounted) return;
@@ -140,6 +189,8 @@ class _PropertyListScreenState extends State<PropertyListScreen>
         banners = result;
         isLoadingBanners = false;
       });
+
+      await saveBannersLocally(result);
 
       if (banners.isNotEmpty) {
         startAutoScroll();

@@ -202,10 +202,11 @@ static void loading(BuildContext context, {String message = "Processing payment.
     );
   }
 
-  static void success(
+ static void success(
   BuildContext context, {
   String title = "Payment Initiated",
   required String message,
+  VoidCallback? onOk, 
 }) {
   _showSheet(
     context,
@@ -215,7 +216,10 @@ static void loading(BuildContext context, {String message = "Processing payment.
     message: message,
     confirmText: "Great",
     hideCancel: true,
-    onConfirm: () {},
+    onConfirm: () {
+      Navigator.pop(context); 
+      if (onOk != null) onOk(); 
+    },
   );
 }
 

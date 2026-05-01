@@ -30,32 +30,37 @@ class PropertyProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetch all public properties
-  Future<void> fetchProperties(String token) async {
-    _setLoading(true);
-    try {
-      final response = await http.get(
-        Uri.parse(ApiConstants.getProperties),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+  // Fetch all public properties
+Future<void> fetchProperties(String token) async {
+  _setLoading(true);
+  try {
+    final response = await http.get(
+      Uri.parse(ApiConstants.getProperties),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
-        final List<dynamic> data = jsonResponse['data'] ?? [];
-        _properties = data.map((e) => PropertyModel.fromJson(e)).toList();
-      } else {
-        _properties = [];
-        debugPrint('Failed to fetch properties: ${response.body}');
-      }
-    } catch (e) {
-      debugPrint('Error fetching properties: $e');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+      final List<dynamic> data = jsonResponse['data'] ?? [];
+      _properties = data.map((e) => PropertyModel.fromJson(e)).toList();
+    } 
+    else if (response.statusCode == 401) {
+      throw Exception("unauthorized");
+    } 
+    else {
       _properties = [];
+      debugPrint('Failed: ${response.body}');
     }
-    _setLoading(false);
+  } catch (e) {
+    _properties = [];
+    rethrow; 
   }
+
+  _setLoading(false);
+}
 
   /// Fetch properties uploaded by logged-in user
   Future<void> fetchUploaderProperties(String token) async {

@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/view/invoice_details.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../providers/auth_providers.dart';
 import '../theme/app_color.dart';
-import 'payment_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -23,6 +24,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   late AnimationController _controller;
   late Animation<double> _fade;
   late Animation<Offset> _slide;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -34,23 +36,28 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
     );
 
     _fade = Tween(begin: 0.0, end: 1.0).animate(_controller);
-    _slide =
-        Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(_controller);
+    _slide = Tween(
+      begin: const Offset(0, 0.2),
+      end: Offset.zero,
+    ).animate(_controller);
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
 
     if (!auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please login first")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Please login first")));
         Navigator.pop(context);
       });
     } else {
       fetchPendingInvoice(auth.accessToken!);
+
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
     }
   }
-
 
   Future<void> fetchPendingInvoice(String token) async {
     setState(() => isLoading = true);
@@ -69,14 +76,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       if (res.statusCode == 200) {
         final List list = body["data"] ?? [];
 
-        final pending = list
-            .where((e) => e["status"] == "pending")
-            .toList();
+        final pending = list.where((e) => e["status"] == "pending").toList();
 
         if (pending.isNotEmpty) {
-          pending.sort((a, b) =>
-              DateTime.parse(b["due_date"])
-                  .compareTo(DateTime.parse(a["due_date"])));
+          pending.sort(
+            (a, b) => DateTime.parse(
+              b["due_date"],
+            ).compareTo(DateTime.parse(a["due_date"])),
+          );
 
           invoice = pending.first;
         } else {
@@ -100,7 +107,71 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _timer?.cancel();
     super.dispose();
+  }
+
+  String formatDateTime(String? date) {
+    if (date == null || date.isEmpty) return "N/A";
+
+    try {
+      final parsed = DateTime.parse(date);
+      return DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
+      // Example: 01 May 2026, 02:30 PM
+    } catch (e) {
+      return date;
+    }
+  }
+
+  String getSmartCountdown(String? date) {
+    if (date == null || date.isEmpty) return "00:00:00";
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return "Expired";
+
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final minutes = diff.inMinutes % 60;
+      final seconds = diff.inSeconds % 60;
+
+      String time =
+          "${hours.toString().padLeft(2, '0')}:"
+          "${minutes.toString().padLeft(2, '0')}:"
+          "${seconds.toString().padLeft(2, '0')}";
+
+      if (days > 0) {
+        return "$days ${days == 1 ? 'Day' : 'Days'} $time";
+      } else {
+        return time;
+      }
+    } catch (e) {
+      return "00:00:00";
+    }
+  }
+
+  Color getExpiryColor(String? date) {
+    if (date == null || date.isEmpty) return Colors.grey;
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return Colors.red;
+
+      if (diff.inHours < 1) return Colors.red;
+      if (diff.inHours < 24) return Colors.orange;
+
+      return Colors.green;
+    } catch (e) {
+      return Colors.grey;
+    }
   }
 
   @override
@@ -110,20 +181,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Subscription",
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "Subscription",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : invoice == null
-              ? _emptyUI()
-              : _invoiceUI(),
+          ? _emptyUI()
+          : _invoiceUI(),
     );
   }
 
- 
   Widget _emptyUI() {
     return Center(
       child: Column(
@@ -139,7 +211,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
       ),
     );
   }
-
 
   Widget _invoiceUI() {
     final bool isPaid = invoice!["status"] == "paid";
@@ -158,15 +229,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
             children: [
               const Text(
                 "Your Subscription",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 20),
 
-        
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -178,7 +245,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 20,
                       offset: const Offset(0, 6),
-                    )
+                    ),
                   ],
                 ),
                 child: Column(
@@ -194,7 +261,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: isPaid
                                 ? Colors.green.withOpacity(0.1)
@@ -204,9 +273,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                           child: Text(
                             isPaid ? "Paid" : "Pending",
                             style: TextStyle(
-                              color: isPaid
-                                  ? Colors.green
-                                  : Colors.orange,
+                              color: isPaid ? Colors.green : Colors.orange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -228,10 +295,22 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                     const SizedBox(height: 6),
 
                     Text(
-                      "Due $dueDate",
-                      style: const TextStyle(color: Colors.grey),
+                      "Due: ${formatDateTime(dueDate)}",
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
-
+                    Row(
+                      children: [
+                        const Icon(Icons.timer, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          getSmartCountdown(invoice!["due_date"]),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: getExpiryColor(invoice!["due_date"]),
+                          ),
+                        ),
+                      ],
+                    ),
                     const Divider(height: 30),
 
                     _row("Invoice ID", invoiceId),
@@ -243,7 +322,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
 
               const SizedBox(height: 30),
 
-         
               Row(
                 children: [
                   Expanded(
@@ -258,21 +336,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen>
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text("View Details", style:TextStyle(color: AppColors.primary),),
+                      child: const Text(
+                        "View Details",
+                        style: TextStyle(color: AppColors.primary),
+                      ),
                     ),
                   ),
 
                   const SizedBox(width: 12),
-
-                  
                 ],
-              )
+              ),
             ],
           ),
         ),

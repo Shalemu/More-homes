@@ -74,7 +74,7 @@ class AuthService {
     }
   }
 
-  /// REGISTER
+  // REGISTER
   Future<ApiResponse<UserModel>> register({required UserModel data}) async {
     final uri = Uri.parse(ApiConstants.registration);
     final body = {
@@ -128,9 +128,7 @@ class AuthService {
     }
   }
 
-  // ==============================
-  // Change Password
-  // ==============================
+
   Future<ApiResponse<void>> changePassword({
     required String token,
     required String oldPassword,

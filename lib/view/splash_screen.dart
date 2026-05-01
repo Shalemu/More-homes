@@ -66,12 +66,11 @@ Future<void> _navigateUser() async {
 
   final auth = Provider.of<AuthProvider>(context, listen: false);
 
-  // Load session
+  // Load saved session
   await auth.loadUserFromPrefs();
 
-  // First install check
+  // First install
   final isFirstInstall = await AppSession.isFirstInstall();
-
   if (isFirstInstall) {
     await AppSession.setNotFirstInstall();
     _go(const OnboardingScreen());
@@ -84,15 +83,18 @@ Future<void> _navigateUser() async {
     return;
   }
 
-  // Check token validity
+
   final isValid = await auth.checkAuthStatus();
 
   if (!isValid) {
+   
+    await auth.logout(); // make sure this clears token + user
+
     _go(const LoginScreen());
     return;
   }
 
-  // Logged in and valid
+
   _go(const HomeScreen());
 }
 

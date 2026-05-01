@@ -133,6 +133,7 @@ String getGroupName(int groupId) {
     });
   }
 }
+
 Future<void> changePlan(String planUuid) async {
   try {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -141,63 +142,52 @@ Future<void> changePlan(String planUuid) async {
     print("CHANGE PLAN REQUEST");
     print("PLAN UUID: $planUuid");
     print("TOKEN: $token");
-    print("URL: ${ApiConstants.changePlan(planUuid)}");
-  
 
     if (token == null || token.isEmpty) {
-      print("No token found - user not logged in");
-
       AppDialog.loginRequired(
         context,
-        onLogin: () {
-          Navigator.pop(context);
-        },
+        onLogin: () => Navigator.pop(context),
       );
       return;
     }
 
-    final url = Uri.parse(ApiConstants.changePlan(planUuid));
-
-    print("Sending POST request...");
-    
     final response = await http.post(
-      url,
+      Uri.parse(ApiConstants.changePlan(planUuid)),
       headers: {
         "Accept": "application/json",
         "Authorization": "Bearer $token",
       },
     );
 
-    print("RESPONSE RECEIVED ");
     print("STATUS CODE: ${response.statusCode}");
     print("BODY: ${response.body}");
 
-
     final data = json.decode(response.body);
 
-    print("PARSED JSON ");
-    print(data);
-   
+    final int statusCode = data["status_code"] ?? response.statusCode;
+    final String message = (data["detail"] ?? "Something went wrong");
 
-    final String path =
-        (data["path"] ?? "plans").toString().toLowerCase();
-
-    final String message =
-        (data["detail"] ?? "").toString().toLowerCase();
-
-    print("PATH: $path");
+    print("FINAL STATUS: $statusCode");
     print("MESSAGE: $message");
 
-    // SUCCESS CONDITION
-    if (response.statusCode == 200 || data["status_code"] == 200) {
-      print("SUCCESS: Plan changed successfully");
-      handleNavigation(context, path);
+   
+    if (statusCode == 200 || statusCode == 201) {
+      print("SUCCESS ");
+
+      AppDialog.success(
+        context,
+        message: message,
+        onOk: () {
+          handleNavigation(context, "invoice");
+        },
+      );
+
       return;
     }
 
-    // ACTIVE SUBSCRIPTION CASE
-    if (message.contains("active subscription")) {
-      print("⚠️ACTIVE SUBSCRIPTION DETECTED");
+
+    if (message.toLowerCase().contains("active subscription")) {
+      print("ACTIVE SUBSCRIPTION DETECTED");
 
       AppDialog.redirectToInvoice(
         context,
@@ -208,20 +198,22 @@ Future<void> changePlan(String planUuid) async {
       return;
     }
 
-    // GENERIC ERROR
-    print(" ERROR: ${message.isEmpty ? "Failed request" : message}");
+    
+    print("ERROR $message");
 
     AppDialog.error(
       context,
-      message: message.isEmpty ? "Failed" : message,
+      message: message,
     );
   } catch (e, stackTrace) {
-    print("========== EXCEPTION ==========");
+ 
     print("ERROR: $e");
     print("STACKTRACE: $stackTrace");
-    print("================================");
 
-    AppDialog.error(context, message: "Network error: $e");
+    AppDialog.error(
+      context,
+      message: "Network error. Please try again.",
+    );
   }
 }
   

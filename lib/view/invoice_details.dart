@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,15 +10,14 @@ import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:morehomesapp/view/changePlan_screen.dart';
 import 'package:morehomesapp/view/help_support_screen.dart';
-import 'package:morehomesapp/view/payment_screen.dart';
 import 'package:provider/provider.dart';
 
 /// Premium Invoice Detail Screen (UI unchanged)
 
 class InvoiceDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> invoice;
-
   const InvoiceDetailScreen({super.key, required this.invoice});
+
+  final Map<String, dynamic> invoice;
 
   @override
   State<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
@@ -27,12 +27,26 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final Animation<double> _fadeAnim;
-  late final Animation<Offset> _slideAnim;
   late final AnimationController _pulseController;
+  late final Animation<Offset> _slideAnim;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _pulseController.dispose();
+
+    super.dispose();
+    _timer?.cancel();
+  }
 
   @override
   void initState() {
     super.initState();
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
 
     _entryController = AnimationController(
       vsync: this,
@@ -58,11 +72,55 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     _pulseController.repeat(reverse: true);
   }
 
-  @override
-  void dispose() {
-    _entryController.dispose();
-    _pulseController.dispose();
-    super.dispose();
+  String getSmartCountdown(String? date) {
+    if (date == null || date.isEmpty) return "00:00:00";
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return "Expired";
+
+      final days = diff.inDays;
+      final hours = diff.inHours % 24;
+      final minutes = diff.inMinutes % 60;
+      final seconds = diff.inSeconds % 60;
+
+      String time =
+          "${hours.toString().padLeft(2, '0')}:"
+          "${minutes.toString().padLeft(2, '0')}:"
+          "${seconds.toString().padLeft(2, '0')}";
+
+      if (days > 0) {
+        return "$days ${days == 1 ? 'Day' : 'Days'} $time";
+      } else {
+        return time;
+      }
+    } catch (e) {
+      return "00:00:00";
+    }
+  }
+
+  Color getExpiryColor(String? date) {
+    if (date == null || date.isEmpty) return Colors.grey;
+
+    try {
+      final due = DateTime.parse(date);
+      final now = DateTime.now();
+
+      final diff = due.difference(now);
+
+      if (diff.isNegative) return Colors.red;
+
+      if (diff.inHours < 1) return Colors.red;
+      if (diff.inHours < 24) return Colors.orange;
+
+      return Colors.green;
+    } catch (e) {
+      return Colors.grey;
+    }
   }
 
   String _formatDate(String? iso) {
@@ -351,6 +409,49 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         'Due Date:',
                         _formatDate(createdAt),
                       ),
+                      const Divider(),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.alarm,
+                              size: 20,
+                              color: Color(0xFF1E8F7A),
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Remain time:",
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13,
+                                ),
+                              ),
+
+                              const SizedBox(height: 4),
+
+                              Text(
+                                "(${getSmartCountdown(createdAt)})",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: getExpiryColor(createdAt),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -358,103 +459,99 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                 const SizedBox(height: 22),
 
                 Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch, // 👈 FULL WIDTH
-  children: [
-    // =========================
-    // PAY / PAID STATE
-    // =========================
-    if (!isPaid)
-      ScaleTransition(
-        scale: Tween<double>(begin: 0.98, end: 1.0).animate(
-          CurvedAnimation(
-            parent: _entryController,
-            curve: Curves.easeOut,
-          ),
-        ),
-        child: SizedBox(
-          height: 56,
-          width: double.infinity, // 👈 FORCE FULL WIDTH
-          child: ElevatedButton.icon(
-            onPressed: () {
-              AppDialog.payment(
-                context,
-                invoiceId: invoice["uuid"].toString(),
-                onPay: (phone) {
-                  _initiatePayment(
-                    invoice["uuid"].toString(),
-                    phone,
-                  );
-                },
-              );
-            },
-            icon: const Icon(Icons.payment, color: Colors.white),
-            label: const Text(
-              'Pay Now',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E8F7A),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      )
-    else
-      Container(
-        height: 56, // 👈 SAME HEIGHT AS BUTTON
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text(
-              "Invoice Paid",
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!isPaid)
+                      ScaleTransition(
+                        scale: Tween<double>(begin: 0.98, end: 1.0).animate(
+                          CurvedAnimation(
+                            parent: _entryController,
+                            curve: Curves.easeOut,
+                          ),
+                        ),
+                        child: SizedBox(
+                          height: 56,
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              AppDialog.payment(
+                                context,
+                                invoiceId: invoice["uuid"].toString(),
+                                onPay: (phone) {
+                                  _initiatePayment(
+                                    invoice["uuid"].toString(),
+                                    phone,
+                                  );
+                                },
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.payment,
+                              color: Colors.white,
+                            ),
+                            label: const Text(
+                              'Pay Now',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E8F7A),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              "Invoice Paid",
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
 
-    const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-    // =========================
-    // CHANGE PLAN (ALWAYS)
-    // =========================
-    SizedBox(
-      height: 50,
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ChangeplanScreen(), // keep simple
-            ),
-          );
-        },
-        icon: const Icon(Icons.swap_horiz),
-        label: const Text("Change Plan"),
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    ),
+                    SizedBox(
+                      height: 50,
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ChangeplanScreen(), // keep simple
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.swap_horiz),
+                        label: const Text("Change Plan"),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
 
-    const SizedBox(height: 24),
-  ],
-),
+                    const SizedBox(height: 24),
+                  ],
+                ),
                 const SizedBox(height: 24),
 
                 // SUPPORT
@@ -502,7 +599,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                   ),
                 ),
               ],
-            
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
+import 'package:morehomesapp/core/helpers/api_handler.dart';
 import 'package:morehomesapp/models/banner_model.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -50,39 +51,27 @@ class _PropertyListScreenState extends State<PropertyListScreen>
   bool isLoadingBanners = true;
   Timer? _bannerTimer;
 
-  Future<List<BannerModel>> fetchBanners() async {
-    try {
-      print("Fetching banners from: ${ApiConstants.addBanner}");
+  Future<List<BannerModel>> fetchBanners(BuildContext context) async {
+  try {
+    final response = await http.get(Uri.parse(ApiConstants.addBanner));
 
-      final response = await http.get(Uri.parse(ApiConstants.addBanner));
+    final decoded = jsonDecode(response.body);
 
-      print("Status Code: ${response.statusCode}");
-      print("Raw Response: ${response.body}");
+    /// GLOBAL HANDLER
+    ApiHandler.handle(context, decoded);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final List list = data['data'] ?? [];
-
-        print("Parsed banners count: ${list.length}");
-
-        final banners = list.map((e) => BannerModel.fromJson(e)).toList();
-
-        for (var banner in banners) {
-          print(" Banner -> image: ${banner.image}");
-        }
-
-        return banners;
-      } else {
-        print("Failed to load banners (Status: ${response.statusCode})");
-        throw Exception('Failed to load banners');
-      }
-    } catch (e) {
-      print("ERROR fetching banners: $e");
-      rethrow;
+    if (decoded['data'] == null) {
+      return [];
     }
-  }
 
+    final List list = decoded['data'];
+
+    return list.map((e) => BannerModel.fromJson(e)).toList();
+  } catch (e) {
+    print("ERROR fetching banners: $e");
+    return [];
+  }
+}
   @override
   void initState() {
     super.initState();
@@ -181,7 +170,7 @@ class _PropertyListScreenState extends State<PropertyListScreen>
         startAutoScroll();
       }
 
-      final result = await fetchBanners();
+      final result = await fetchBanners(context);
 
       if (!mounted) return;
 
@@ -360,7 +349,7 @@ class _PropertyListScreenState extends State<PropertyListScreen>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // ================= IMAGE =================
+                                
                                     Stack(
                                       children: [
                                         AspectRatio(
@@ -442,7 +431,7 @@ class _PropertyListScreenState extends State<PropertyListScreen>
                                       ],
                                     ),
 
-                                    // ================= DETAILS =================
+                                  
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                         10,

@@ -8,45 +8,50 @@ import '../config/backend_apis.dart';
 class AuthService {
   /// LOGIN
   Future<ApiResponse<UserModel>> login(String email, String password) async {
-    final uri = Uri.parse(ApiConstants.login);
-    final body = {'username': email, 'password': password};
+  final uri = Uri.parse(ApiConstants.login);
+  final body = {'username': email, 'password': password};
 
-    try {
-      final response = await http.post(
-        uri,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(body),
+  try {
+    final response = await http.post(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    debugPrint("Login status code: ${response.statusCode}");
+    debugPrint("Login body: ${response.body}");
+
+    if (response.body.isEmpty) {
+      return ApiResponse<UserModel>(
+        totalItem: 0,
+        detail: "Empty response from server",
+        statusCode: response.statusCode,
       );
-
-      debugPrint("Login status code: ${response.statusCode}");
-      debugPrint("Login body: ${response.body}");
-
-      if (!response.headers['content-type']!.contains("application/json")) {
-        throw Exception(
-          "Login failed: Server returned non-JSON response:\n${response.body}",
-        );
-      }
-
-      final decoded = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        return ApiResponse<UserModel>.fromJson(
-          decoded,
-          (data) => UserModel.fromJson(data),
-        );
-      } else {
-        final detail = decoded['detail'] ?? decoded.toString();
-        throw Exception("Login failed: $detail");
-      }
-    } catch (e, stackTrace) {
-      debugPrint("Login exception: $e\n$stackTrace");
-      rethrow;
     }
-  }
 
+
+
+    final decoded = jsonDecode(response.body);
+
+   
+    return ApiResponse<UserModel>.fromJson(
+      decoded,
+      (data) => UserModel.fromJson(data),
+    );
+  } catch (e) {
+    debugPrint("Login exception: $e");
+
+   
+    return ApiResponse<UserModel>(
+      totalItem: 0,
+      detail: e.toString(),
+      statusCode: 500,
+    );
+  }
+}
   Future<List<Map<String, dynamic>>> getRoles() async {
     final uri = Uri.parse(ApiConstants.roles);
 

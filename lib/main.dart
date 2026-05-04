@@ -18,6 +18,10 @@ import 'package:morehomesapp/view/property_details_screen.dart';
 import 'package:morehomesapp/l10n/app_localizations.dart';
 import 'package:morehomesapp/config/app_routes.dart';
 
+
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
+    
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -66,6 +70,7 @@ class AppRoot extends StatelessWidget {
     final lang = Provider.of<LanguageProvider>(context);
 
     return MaterialApp(
+      navigatorKey: navigatorKey, 
       title: 'More Homes',
       debugShowCheckedModeBanner: false,
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:morehomesapp/core/updates/update_manager.dart';
 import 'package:morehomesapp/widget/top_notification.dart';
 import 'package:provider/provider.dart';
 
@@ -33,26 +34,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _obscurePassword = !_obscurePassword);
   }
 
-  /// INLINE MESSAGE
-  void _showMessage(String message, {bool isError = false}) {
-    setState(() {
-      _message = message;
-      _isError = isError;
-    });
 
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() => _message = null);
-      }
-    });
-  }
-
-  /// LOGIN FUNCTION
- Future<void> _login() async {
+Future<void> _login() async {
   final username = _usernameController.text.trim();
   final password = _passwordController.text.trim();
 
-  /// VALIDATION
+
+  // VALIDATION
+
   if (username.isEmpty && password.isEmpty) {
     TopNotification.show(
       context,
@@ -85,64 +74,87 @@ class _LoginScreenState extends State<LoginScreen> {
     final authService = AuthService();
     final response = await authService.login(username, password);
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      if (response.data == null) {
-        TopNotification.show(
-          context,
-          message: "Login failed. Try again",
-          color: Colors.redAccent,
-          icon: Icons.error_outline,
-        );
-        return;
-      }
+   
+    // FORCE UPDATE CHECK (GLOBAL)
+   
+    UpdateManager.check(
+      context,
+      msg: response.msg,
+    );
 
-      final user = response.data!;
-      final provider = Provider.of<AuthProvider>(context, listen: false);
-
-      final accessToken = response.access ?? '';
-      final refreshToken = response.refresh ?? '';
-
-      await TokenStorage.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
-
-      provider.login(user, accessToken, refreshToken);
-
-      if (!mounted) return;
-
+  
+    // HANDLE API ERROR
+   
+    if (response.statusCode != 200 &&
+        response.statusCode != 201) {
       TopNotification.show(
         context,
-        message: "Signed in successfully",
-        color: AppColors.primary,
-        icon: Icons.check_circle,
-      );
-
-      /// DELAY BEFORE NAVIGATION
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (!mounted) return;
-
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const HomeScreen(),
-            transitionsBuilder: (_, animation, __, child) =>
-                FadeTransition(opacity: animation, child: child),
-            transitionDuration: const Duration(milliseconds: 250),
-          ),
-        );
-      });
-    } else {
-      TopNotification.show(
-        context,
-        message: "Invalid email or password",
+        message: response.msg ?? response.detail,
         color: Colors.redAccent,
         icon: Icons.error_outline,
       );
+      return;
     }
+
+    
+    // DATA VALIDATION
+ 
+    if (response.data == null) {
+      TopNotification.show(
+        context,
+        message: "Login failed. Try again",
+        color: Colors.redAccent,
+        icon: Icons.error_outline,
+      );
+      return;
+    }
+
+
+    // SUCCESS LOGIN
+   
+    final user = response.data!;
+    final provider =
+        Provider.of<AuthProvider>(context, listen: false);
+
+    final accessToken = response.access ?? '';
+    final refreshToken = response.refresh ?? '';
+
+    await TokenStorage.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+
+    provider.login(user, accessToken, refreshToken);
+
+    if (!mounted) return;
+
+    TopNotification.show(
+      context,
+      message: response.msg ?? "Signed in successfully",
+      color: AppColors.primary,
+      icon: Icons.check_circle,
+    );
+
+  
+    // NAVIGATE TO HOME
+   
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const HomeScreen(),
+          transitionsBuilder: (_, animation, __, child) =>
+              FadeTransition(opacity: animation, child: child),
+          transitionDuration: const Duration(milliseconds: 250),
+        ),
+      );
+    });
+
   } catch (e) {
     TopNotification.show(
       context,
-      message: "Unable to login. Please try again",
+      message: e.toString(),
       color: Colors.redAccent,
       icon: Icons.error_outline,
     );
@@ -150,7 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 }
-
   void _goToSignUp() {
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -211,7 +222,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  /// 🔥 MESSAGE HERE
+                  //  MESSAGE HERE
                   if (_message != null) ...[
                     const SizedBox(height: 12),
                     AnimatedContainer(
@@ -301,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 5),
 
-                        /// FORGOT PASSWORD
+                        //FORGOT PASSWORD
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(

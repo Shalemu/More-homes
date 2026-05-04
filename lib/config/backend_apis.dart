@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 class ApiConstants {
-  static const String baseUrl = "https://morehomes.co.tz";
+  static const String baseUrl = "https://morehomes.co.tz/api/v2";
 
 
   // Auth
@@ -23,13 +23,6 @@ class ApiConstants {
   static const String propertyDetail = "$baseUrl/homes/property/{uuid}"; 
   static const String propertyDetailUploader = "$baseUrl/homes/uploader-properties/properties/"; 
   static const String updateProperty = "$baseUrl/homes/update-property/{uuid}"; 
-
-
-  // Booking
-  static const String booking = "$baseUrl/api/book/property/";
-  static const String airbnbBooking = "$baseUrl/api/airbnb-bookings/";
-
-
 
 
 // feedback

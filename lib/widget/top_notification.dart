@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 class TopNotification {
   static void show(
     BuildContext context, {
-    required String message,
+    required String? message,
     required Color color,
     IconData icon = Icons.info_outline,
-    int seconds = 2,
+    int seconds = 3,
   }) {
+    // 🔥 NEVER show empty or null message
+    final text = (message == null || message.trim().isEmpty)
+        ? "Something went wrong"
+        : message;
+
     final overlay = Overlay.of(context);
 
     final entry = OverlayEntry(
@@ -18,7 +23,7 @@ class TopNotification {
         child: Material(
           color: Colors.transparent,
           child: _NotificationCard(
-            message: message,
+            message: text,
             color: color,
             icon: icon,
           ),
@@ -31,6 +36,65 @@ class TopNotification {
     Future.delayed(Duration(seconds: seconds), () {
       entry.remove();
     });
+  }
+
+  // 🔥 SUCCESS MESSAGE
+  static void success(BuildContext context, String? message) {
+    show(
+      context,
+      message: message,
+      color: Colors.green,
+      icon: Icons.check_circle,
+    );
+  }
+
+  // 🔥 ERROR MESSAGE
+  static void error(BuildContext context, String? message) {
+    show(
+      context,
+      message: message,
+      color: Colors.red,
+      icon: Icons.error,
+    );
+  }
+
+
+  static void update(BuildContext context, String? message) {
+    show(
+      context,
+      message: message,
+      color: Colors.orange,
+      icon: Icons.system_update,
+      seconds: 5,
+    );
+  }
+
+
+  static void fromApi(
+    BuildContext context,
+    String? msg, {
+    int statusCode = 0,
+    bool? forceUpdate,
+  }) {
+    // 1. FORCE UPDATE FIRST
+    if (forceUpdate == true ||
+        (msg ?? '').toLowerCase().contains("update")) {
+      update(context, msg ?? "Please update your application");
+      return;
+    }
+
+    // 2. ERROR
+    if (statusCode != 200) {
+      error(context, msg);
+      return;
+    }
+
+    // 3. DEFAULT INFO
+    show(
+      context,
+      message: msg,
+      color: Colors.blue,
+    );
   }
 }
 

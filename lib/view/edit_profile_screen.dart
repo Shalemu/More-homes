@@ -1,8 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_color.dart';
-import '../models/user_model.dart';
 
 
 class EditProfileScreen extends StatefulWidget {
@@ -19,6 +21,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController emailController;
   String gender = "Male";
 
+  final ImagePicker _picker = ImagePicker();
+  File? _selectedImage;
+  bool _saving = false;
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +35,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     lastNameController = TextEditingController(text: user?.lastName ?? '');
     phoneController = TextEditingController(text: user?.phone ?? '');
     emailController = TextEditingController(text: user?.email ?? '');
+  }
+
+  Future<void> _pickImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Take a photo'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _selectImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from gallery'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _selectImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectImage(ImageSource source) async {
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 800,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _selectedImage = File(picked.path));
+    }
   }
 
   @override
@@ -75,10 +120,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: authProvider.user?.profilePictureUrl != null
-                            ? NetworkImage(authProvider.user!.profilePictureUrl!)
-                            : const AssetImage('assets/images/profile_placeholder.png')
-                                as ImageProvider,
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!) as ImageProvider
+                            : (authProvider.user?.profilePictureUrl != null
+                                ? NetworkImage(
+                                    authProvider.user!.profilePictureUrl!,
+                                  )
+                                : const AssetImage(
+                                    'assets/images/profile_placeholder.png',
+                                  )),
                       ),
                       Container(
                         decoration: BoxDecoration(
@@ -88,9 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: IconButton(
                           icon: const Icon(Icons.camera_alt,
                               size: 18, color: Colors.white),
-                          onPressed: () {
-                            // TODO: pick image
-                          },
+                          onPressed: _pickImage,
                         ),
                       ),
                     ],
@@ -109,33 +157,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           borderRadius: BorderRadius.circular(12)),
                       minimumSize: const Size(double.infinity, 55),
                     ),
-                    onPressed: () async {
-                      if (authProvider.user == null) return;
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            if (authProvider.user == null) return;
 
-                      final updatedUser = UserModel(
-                        uuid: authProvider.user!.uuid,
-                        firstName: firstNameController.text,
-                        lastName: lastNameController.text,
-                        phone: phoneController.text,
-                        email: emailController.text,
-                        location: authProvider.user!.location,
-                        password: authProvider.user!.password,
-                        // serviceCharge: authProvider.user!.serviceCharge,
-                        groups: authProvider.user!.groups,
-                        profilePictureUrl: authProvider.user!.profilePictureUrl,
-                      );
+                            setState(() => _saving = true);
 
-                      await authProvider.updateUser(updatedUser);
+                            final result = await authProvider.updateProfile(
+                              firstName: firstNameController.text.trim(),
+                              lastName: lastNameController.text.trim(),
+                              phone: phoneController.text.trim(),
+                              email: emailController.text.trim(),
+                              profileImage: _selectedImage,
+                            );
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile updated successfully')),
-                      );
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.save, color: Colors.white),
-                    label: const Text(
-                      "Save Changes",
-                      style: TextStyle(
+                            if (!context.mounted) return;
+                            setState(() => _saving = false);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result['success'] == true
+                                      ? 'Profile updated successfully'
+                                      : (result['message'] ??
+                                          'Failed to update profile'),
+                                ),
+                              ),
+                            );
+
+                            if (result['success'] == true) {
+                              Navigator.pop(context);
+                            }
+                          },
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.save, color: Colors.white),
+                    label: Text(
+                      _saving ? "Saving..." : "Save Changes",
+                      style: const TextStyle(
                           fontSize: 16,
                           color: Colors.white,
                           fontWeight: FontWeight.w600),

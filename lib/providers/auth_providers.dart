@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -92,15 +93,50 @@ class AuthProvider with ChangeNotifier {
   }
 
 
-  Future<void> updateUser(UserModel updatedUser) async {
+  /// Sends the updated profile (and optional base64 profile picture) to the
+  /// backend, then persists the returned user locally on success.
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    String? location,
+    File? profileImage,
+  }) async {
+    if (_accessToken == null || !_isTokenValid()) {
+      await logout();
+      return {
+        'success': false,
+        'message': 'Session expired. Please login again.',
+      };
+    }
+
     _setLoading(true);
 
-    _user = updatedUser;
+    final authService = AuthService();
+    final response = await authService.updateProfile(
+      token: _accessToken!,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      email: email,
+      location: location ?? _user?.location,
+      profileImage: profileImage,
+    );
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user', json.encode(updatedUser.toJson()));
+    if (response.statusCode == 200 && response.data != null) {
+      _user = response.data;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user', json.encode(_user!.toJson()));
+    }
 
     _setLoading(false);
+
+    return {
+      'success': response.statusCode == 200,
+      'message': response.detail,
+    };
   }
 
  

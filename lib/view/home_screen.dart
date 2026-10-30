@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/property_provider.dart';
 import '../providers/auth_providers.dart';
 import '../theme/app_color.dart';
+import '../utils/permissions.dart';
 
 import 'property_list_screen.dart';
 import 'owner_feedback_screen.dart';
@@ -48,14 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
 
-    //  Check if user is OWNER (group ID = 3)
-    bool isOwner = false;
-    bool canAddProperty = false;
-
-    if (user != null && user.groups.isNotEmpty) {
-      isOwner = user.groups.contains(3);
-      canAddProperty = user.groups.contains(3);
-    }
+    // Check if user can manage properties (owner/broker), via permissions
+    final isOwner = user?.isOwner ?? false;
+    final canAddProperty = user?.canAddProperty ?? false;
 
     final screens = [
       const PropertyListScreen(),

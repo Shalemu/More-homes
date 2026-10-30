@@ -7,6 +7,7 @@ class UserModel {
   final String location;
   final String password;
   final List<int> groups;
+  final List<String> permissions;
   final String? profilePictureUrl;
 
   UserModel({
@@ -18,6 +19,7 @@ class UserModel {
     required this.location,
     required this.password,
     required this.groups,
+    this.permissions = const [],
     this.profilePictureUrl,
   });
 
@@ -32,6 +34,8 @@ class UserModel {
       "location": location,
       "password": password,
       "groups": groups,
+      "permissions": permissions,
+      "profile_picture_url": profilePictureUrl,
     };
   }
 
@@ -45,7 +49,10 @@ class UserModel {
       location: json["location"] ?? '',
       password: json["password"] ?? '',
       groups: List<int>.from(json["groups"] ?? []),
-      profilePictureUrl: json["profile_picture_url"],
+      permissions: List<String>.from(json["permissions"] ?? []),
+      profilePictureUrl: json["profile_picture_url"] ??
+          json["profile_image_url"] ??
+          json["profile_image"],
     );
   }
 }

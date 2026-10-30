@@ -6,7 +6,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   Widget _policyCard({
-    required IconData icon,
+    required Widget icon,
     required String title,
     required String content,
   }) {
@@ -35,7 +35,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: AppColors.primary.withOpacity(0.15),
-              child: Icon(icon, color: AppColors.primary, size: 24),
+              child: icon,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -118,25 +118,25 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
             // Policy Sections
             _policyCard(
-              icon: FontAwesomeIcons.userShield,
+              icon: const FaIcon(FontAwesomeIcons.userShield),
               title: "Information Collection",
               content:
                   "We may collect personal information such as name, email, phone number, property preferences, and payment details to provide our services.",
             ),
             _policyCard(
-              icon: FontAwesomeIcons.solidHandshake,
+              icon: const FaIcon(FontAwesomeIcons.solidHandshake),
               title: "Use of Information",
               content:
                   "Information is used to improve our services, communicate with users, manage property listings, and process payments securely.",
             ),
             _policyCard(
-              icon: FontAwesomeIcons.lock,
+           icon: const FaIcon(FontAwesomeIcons.lock),
               title: "Data Security",
               content:
                   "We implement industry-standard measures to protect your personal information from unauthorized access or disclosure.",
             ),
             _policyCard(
-              icon: FontAwesomeIcons.shareNodes,
+              icon: const FaIcon(FontAwesomeIcons.shareNodes),
               title: "Sharing Information",
               content:
                   "We do not sell or share your personal information with third parties except as necessary to provide our services or comply with legal requirements.",

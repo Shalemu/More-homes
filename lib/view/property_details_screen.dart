@@ -174,23 +174,25 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _actionButton(
-                    icon: Icons.call,
+                    icon: const Icon(Icons.call),
                     label: "Call",
                     color: Colors.green,
                     onTap: () => _callUser(property.uploaderPhone),
                   ),
                   _actionButton(
-                    icon: Icons.chat,
+                    icon: const Icon(Icons.chat),
                     label: "SMS",
                     color: Colors.blue,
                     onTap: () => _smsUser(property.uploaderPhone),
                   ),
-                  _actionButton(
-                    icon: FontAwesomeIcons.whatsapp,
-                    label: "WhatsApp",
-                    color: Colors.green.shade700,
-                    onTap: () => _whatsappUser(property.uploaderPhone),
-                  ),
+            _actionButton(
+            icon: FaIcon(
+              FontAwesomeIcons.whatsapp,
+            ),
+            label: "WhatsApp",
+            color: Colors.green.shade700,
+            onTap: () => _whatsappUser(property.uploaderPhone),
+          ),
                 ],
               ),
 
@@ -1258,7 +1260,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
   }
 
   Widget _actionButton({
-    required IconData icon,
+    required Widget icon,
     required String label,
     required Color color,
     required VoidCallback onTap,
@@ -1273,7 +1275,7 @@ class _PropertyDetailScreenState extends State<PropertyDetailScreen> {
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 26),
+            child: icon,
           ),
           const SizedBox(height: 6),
           Text(label, style: const TextStyle(fontSize: 12)),

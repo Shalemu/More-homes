@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import '../models/api_response_model.dart';
@@ -133,6 +134,126 @@ class AuthService {
     }
   }
 
+
+  /// The server only accepts .jpg/.jpeg/.png, but the picker can hand back
+  /// files with odd extensions (e.g. ".cr2"). Sniff the real format and
+  /// return a copy with a matching extension.
+  Future<File> _withValidImageExtension(File source) async {
+    final lower = source.path.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png')) {
+      return source;
+    }
+
+    final raf = await source.open();
+    final header = await raf.read(8);
+    await raf.close();
+
+    final isPng = header.length >= 4 &&
+        header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47;
+    final isJpeg = header.length >= 3 &&
+        header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
+
+    if (!isPng && !isJpeg) {
+      throw Exception('Selected file is not a JPG or PNG image.');
+    }
+
+    final ext = isPng ? 'png' : 'jpg';
+    return source.copy('${source.parent.path}/profile_upload.$ext');
+  }
+
+  /// UPDATE PROFILE (multipart/form-data — the endpoint rejects
+  /// application/json since it accepts a profile picture file)
+  Future<ApiResponse<UserModel>> updateProfile({
+    required String token,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    String? location,
+    File? profileImage,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PATCH',
+        Uri.parse(ApiConstants.updateProfile),
+      )
+        ..headers['Authorization'] = 'Bearer $token'
+        ..headers['Accept'] = 'application/json'
+        ..fields['first_name'] = firstName
+        ..fields['last_name'] = lastName
+        ..fields['phone'] = phone
+        ..fields['email'] = email;
+
+      if (location != null) {
+        request.fields['location'] = location;
+      }
+
+      if (profileImage != null) {
+        final uploadFile = await _withValidImageExtension(profileImage);
+        debugPrint(
+          "Update profile: attaching image ${uploadFile.path} (${await uploadFile.length()} bytes)",
+        );
+        request.files.add(
+          await http.MultipartFile.fromPath('profile_image', uploadFile.path),
+        );
+      }
+
+      debugPrint("Update profile: PATCH ${ApiConstants.updateProfile}");
+      debugPrint("Update profile: fields ${request.fields}");
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint("Update profile status code: ${response.statusCode}");
+      debugPrint("Update profile body: ${response.body}");
+
+      final decoded = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final userJson = (decoded is Map && decoded['data'] != null)
+            ? decoded['data']
+            : decoded;
+
+        return ApiResponse<UserModel>(
+          totalItem: 0,
+          detail: (decoded is Map ? (decoded['detail'] ?? decoded['msg']) : null) ??
+              'Profile updated successfully',
+          statusCode: response.statusCode,
+          data: UserModel.fromJson(userJson),
+        );
+      }
+
+      String errorMessage = 'Failed to update profile';
+      if (decoded is Map) {
+        if (decoded['detail'] != null) {
+          errorMessage = decoded['detail'].toString();
+        } else if (decoded['msg'] != null) {
+          errorMessage = decoded['msg'].toString();
+        } else if (decoded['message'] != null) {
+          errorMessage = decoded['message'].toString();
+        } else if (decoded.isNotEmpty) {
+          errorMessage = decoded.values
+              .map((e) => e is List ? e.join(", ") : e.toString())
+              .join("\n");
+        }
+      }
+
+      debugPrint("Update profile failed (${response.statusCode}): $errorMessage");
+
+      return ApiResponse<UserModel>(
+        totalItem: 0,
+        detail: errorMessage,
+        statusCode: response.statusCode,
+      );
+    } catch (e) {
+      debugPrint("Update profile exception: $e");
+      return ApiResponse<UserModel>(
+        totalItem: 0,
+        detail: 'Unexpected error: $e',
+        statusCode: 500,
+      );
+    }
+  }
 
   Future<ApiResponse<void>> changePassword({
     required String token,

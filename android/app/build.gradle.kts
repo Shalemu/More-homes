@@ -15,6 +15,10 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.shadrack.morehomesapp"
+
+    // Add this
+    ndkVersion = "28.2.13676358"
+
     compileSdk = flutter.compileSdkVersion
 
     compileOptions {

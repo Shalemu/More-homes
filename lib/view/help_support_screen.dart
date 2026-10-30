@@ -76,7 +76,7 @@ Future<void> _openWhatsapp() async {
   // ---------------- UI COMPONENT ----------------
 
   Widget _contactCard({
-    required IconData icon,
+    required Widget icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -104,7 +104,7 @@ Future<void> _openWhatsapp() async {
               CircleAvatar(
                 radius: 28,
                 backgroundColor: AppColors.primary.withOpacity(0.1),
-                child: Icon(icon, size: 30, color: AppColors.primary),
+                child: icon,
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -170,20 +170,20 @@ Future<void> _openWhatsapp() async {
 
             // Contact Cards
             _contactCard(
-              icon: FontAwesomeIcons.whatsapp,
+              icon: const FaIcon(FontAwesomeIcons.whatsapp),
               title: "WhatsApp Support",
               subtitle: "+255 767 983 236",
               onTap: _openWhatsapp,
             ),
 
             _contactCard(
-              icon: Icons.email_outlined,
+              icon: const FaIcon(FontAwesomeIcons.envelope),
               title: "Email Support",
               subtitle: "shadrackmussa97@gmail.com",
               onTap: _sendEmail,
             ),
             _contactCard(
-              icon: Icons.phone_in_talk,
+              icon: const FaIcon(FontAwesomeIcons.phone),
               title: "Call Us",
               subtitle: "+255 767 983 236",
               onTap: _callPhone,

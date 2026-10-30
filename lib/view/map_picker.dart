@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
-import 'package:morehomesapp/theme/app_color.dart';
+import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:morehomesapp/theme/app_color.dart';
 
 
 class MapPickerScreen extends StatefulWidget {
@@ -14,322 +15,293 @@ class MapPickerScreen extends StatefulWidget {
 }
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
-  LatLng? _pickedLocation;
-  bool _loading = false;
-  bool _locationTapped = false;
-  late final MapController _mapController;
+  MapLibreMapController? _controller;
+
+  LatLng _center = const LatLng(-6.7924, 39.2083);
+
+  Timer? _debounce;
+
   final TextEditingController _searchController = TextEditingController();
-  final String mapTilerApiKey = 'TeXYsuIuJeX1NepPjksu';
 
-  final Map<String, String> _mapStyles = {
-    'Streets': 'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=',
-    'Satellite + Labels':
-        'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=',
-    'Satellite (No Labels)':
-        'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=',
-    'Basic': 'https://api.maptiler.com/maps/basic/{z}/{x}/{y}.png?key=',
-    'Topographic': 'https://api.maptiler.com/maps/topo/{z}/{x}/{y}.png?key=',
-    'Bright': 'https://api.maptiler.com/maps/bright/{z}/{x}/{y}.png?key=',
-  };
+  String address = "";
+  String district = "";
+  String region = "";
+  String country = "";
 
-  String _selectedMapStyle = 'Streets';
+  bool _loadingAddress = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _mapController = MapController();
+
+  final String styleUrl = '''
+{
+  "version": 8,
+  "sources": {
+    "osm": {
+      "type": "raster",
+      "tiles": [
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      "tileSize": 256,
+      "attribution": "© OpenStreetMap contributors"
+    }
+  },
+  "layers": [
+    {
+      "id": "osm",
+      "type": "raster",
+      "source": "osm"
+    }
+  ]
+}
+''';
+
+
+  void _onMapCreated(MapLibreMapController controller) {
+    _controller = controller;
+    _goToCurrentLocation();
   }
 
-  void _onTap(LatLng latlng) {
-    setState(() {
-      _pickedLocation = latlng;
-      _locationTapped = true;
+
+  void _onCameraMove(CameraPosition position) {
+    _center = position.target;
+  }
+
+
+  void _onCameraIdle() {
+    _debounce?.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 600), () {
+      _reverseGeocode(_center);
     });
   }
 
-  Future<Map<String, String>> _getAddressFromMapTiler(
-    double lat,
-    double lng,
-  ) async {
-    final url = Uri.parse(
-      'https://api.maptiler.com/geocoding/$lng,$lat.json?key=$mapTilerApiKey',
-    );
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['features'].isNotEmpty) {
-        final feature = data['features'].first;
-        final context = feature['context'] ?? [];
-
-        String? village;
-        String? district;
-        String? region;
-        String? country;
-
-        for (var item in context) {
-          final id = item['id'] ?? '';
-          final text = item['text'] ?? '';
-
-          if (id.contains('country') && country == null) country = text;
-          if ((id.contains('region') || id.contains('macroregion')) &&
-              region == null)
-            region = text;
-          if ((id.contains('district') || id.contains('county')) &&
-              district == null)
-            district = text;
-          if ((id.contains('locality') || id.contains('place')) &&
-              village == null &&
-              text != district &&
-              text != region)
-            village = text;
-        }
-
-        if (district == null || district.isEmpty) {
-          district = village;
-          village = feature['text'];
-        }
-
-        village ??= feature['text'];
-        district ??= '';
-        region ??= '';
-        country ??= '';
-
-        final fullAddress = [
-          village,
-          district,
-          region,
-          country,
-        ].where((e) => e?.isNotEmpty == true).join(', ');
-
-        return {
-          'address': fullAddress,
-          'district': district,
-          'region': region,
-          'country': country,
-        };
-      }
-    }
-
-    return {
-      'address': 'Unknown address',
-      'district': '',
-      'region': '',
-      'country': '',
-    };
-  }
-
-  Future<void> _onConfirm() async {
-    if (_pickedLocation == null) return;
-
-    setState(() => _loading = true);
+ 
+  Future<void> _goToCurrentLocation() async {
     try {
-      final result = await _getAddressFromMapTiler(
-        _pickedLocation!.latitude,
-        _pickedLocation!.longitude,
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) return;
+
+      final pos = await Geolocator.getCurrentPosition();
+
+      final latLng = LatLng(pos.latitude, pos.longitude);
+
+      _center = latLng;
+
+      _controller?.animateCamera(
+        CameraUpdate.newLatLngZoom(latLng, 16),
       );
 
-      Navigator.pop(context, {
-        'latitude': _pickedLocation!.latitude,
-        'longitude': _pickedLocation!.longitude,
-        'address': result['address'],
-        'district': result['district'],
-        'region': result['region'],
-        'country': result['country'],
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to get address: $e')));
-    } finally {
-      setState(() => _loading = false);
-    }
+      _reverseGeocode(latLng);
+    } catch (_) {}
   }
 
-  Future<List<Map<String, dynamic>>> _searchPlaces(String query) async {
+ 
+  Future<void> _reverseGeocode(LatLng latLng) async {
+    setState(() => _loadingAddress = true);
+
+    try {
+      final url = Uri.parse(
+        "https://nominatim.openstreetmap.org/reverse"
+        "?format=jsonv2&lat=${latLng.latitude}&lon=${latLng.longitude}",
+      );
+
+      final res = await http.get(url, headers: {
+        "User-Agent": "map-app"
+      });
+
+      final data = jsonDecode(res.body);
+      final addr = data["address"] ?? {};
+
+      setState(() {
+        address = data["display_name"] ?? "";
+        district = addr["county"] ?? addr["city"] ?? addr["suburb"] ?? "";
+        region = addr["state"] ?? "";
+        country = addr["country"] ?? "";
+      });
+    } catch (_) {}
+
+    setState(() => _loadingAddress = false);
+  }
+
+ 
+  Future<void> _searchPlace() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
     final url = Uri.parse(
-      'https://api.maptiler.com/geocoding/$query.json?key=$mapTilerApiKey',
+      "https://nominatim.openstreetmap.org/search"
+      "?format=jsonv2&q=$query",
     );
-    final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final features = data['features'] as List;
+    final res = await http.get(url, headers: {
+      "User-Agent": "map-app"
+    });
 
-      return features.map((f) {
-        final coords = f['geometry']['coordinates'];
-        return {'name': f['place_name'], 'lat': coords[1], 'lng': coords[0]};
-      }).toList();
-    } else {
-      return [];
-    }
+    final data = jsonDecode(res.body);
+    if (data.isEmpty) return;
+
+    final latLng = LatLng(
+      double.parse(data[0]["lat"]),
+      double.parse(data[0]["lon"]),
+    );
+
+    _center = latLng;
+
+    _controller?.animateCamera(
+      CameraUpdate.newLatLngZoom(latLng, 16),
+    );
+
+    _reverseGeocode(latLng);
+  }
+
+
+  void _confirm() {
+    Navigator.pop(context, {
+      "latitude": _center.latitude,
+      "longitude": _center.longitude,
+      "address": address,
+      "district": district,
+      "region": region,
+      "country": country,
+    });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final tileUrl = _mapStyles[_selectedMapStyle]! + mapTilerApiKey;
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pick Location',style: TextStyle(color: Colors.white),),
-        backgroundColor: AppColors.primary, // Using AppColors.primary
-         iconTheme: const IconThemeData(
-      color: AppColors.textLight, // <-- makes back arrow white
-    ),
-      ),
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _pickedLocation ?? LatLng(-6.7924, 39.2083),
-              initialZoom: 13.0,
-              onTap: (tapPosition, latlng) => _onTap(latlng),
+        
+     MapLibreMap(
+      styleString: styleUrl,
+      initialCameraPosition: CameraPosition(
+        target: _center,
+        zoom: 15,
+      ),
+      onMapCreated: _onMapCreated,
+      onCameraMove: _onCameraMove,
+      onCameraIdle: _onCameraIdle,
+      myLocationEnabled: true,
+      compassEnabled: false,
+    ),
+
+        
+          const Center(
+            child: Icon(
+              Icons.location_pin,
+              size: 60,
+              color: Colors.red,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: tileUrl,
-                userAgentPackageName: 'com.morehomes.app',
-              ),
-              if (_pickedLocation != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _pickedLocation!,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.location_pin,
-                        color: AppColors.danger, // Use danger color for marker
-                        size: 40,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
           ),
+
+         
           Positioned(
-            top: 16,
-            left: 16,
-            right: 16,
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search place or address',
-                filled: true,
-                fillColor: AppColors.white, // Using AppColors.white
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-                prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search, color: Colors.black54),
-                  onPressed: () async {
-                    final query = _searchController.text;
-                    if (query.isNotEmpty) {
-                      final results = await _searchPlaces(query);
-                      if (results.isNotEmpty) {
-                        final first = results.first;
-                        final lat = first['lat'];
-                        final lng = first['lng'];
-                        setState(() {
-                          _pickedLocation = LatLng(lat, lng);
-                          _mapController.move(_pickedLocation!, 15);
-                          _locationTapped = false;
-                        });
-                      }
-                    }
-                  },
-                ),
+            top: 50,
+            left: 15,
+            right: 15,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 12,
+                    color: Colors.black.withOpacity(0.1),
+                  )
+                ],
               ),
-            ),
-          ),
-          if (_pickedLocation != null && _locationTapped)
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: ElevatedButton.icon(
-                onPressed: _loading ? null : _onConfirm,
-                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                label: _loading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white, // Loader color
-                        ),
-                      )
-                    : const Text('Confirm This Location', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary, // Using AppColors.primary
-                  textStyle: const TextStyle(color: Colors.white),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: "Search location...",
+                  border: InputBorder.none,
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: _searchPlace,
                   ),
                 ),
               ),
-
-            
             ),
-            
+          ),
+
+      
           Positioned(
+            right: 15,
+            bottom: 170,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              onPressed: _goToCurrentLocation,
+              child: const Icon(Icons.my_location, color: Colors.black),
+            ),
+          ),
+
+      
+          Positioned(
+            left: 15,
+            right: 15,
             bottom: 20,
-            right: 20,
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.layers, color: AppColors.accent, size: 30),
-              color: AppColors.white,
-              onSelected: (val) {
-                setState(() {
-                  _selectedMapStyle = val;
-                });
-              },
-              itemBuilder: (context) {
-                return _mapStyles.entries.map((entry) {
-                  IconData iconData;
-                  switch (entry.key) {
-                    case 'Streets':
-                      iconData = Icons.map;
-                      break;
-                    case 'Satellite + Labels':
-                      iconData = Icons.satellite;
-                      break;
-                    case 'Satellite (No Labels)':
-                      iconData = Icons.satellite_outlined;
-                      break;
-                    case 'Basic':
-                      iconData = Icons.layers_clear;
-                      break;
-                    case 'Topographic':
-                      iconData = Icons.terrain;
-                      break;
-                    case 'Bright':
-                      iconData = Icons.wb_sunny;
-                      break;
-                    default:
-                      iconData = Icons.map;
-                  }
-                  return PopupMenuItem<String>(
-                    value: entry.key,
-                    child: Row(
-                      children: [
-                        Icon(iconData, size: 20, color: AppColors.accent),
-                        const SizedBox(width: 8),
-                        Text(entry.key),
-                      ],
+            child: Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 20,
+                    color: Colors.black.withOpacity(0.15),
+                  )
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_loadingAddress)
+                    const LinearProgressIndicator(),
+
+                  Text(
+                    address.isEmpty
+                        ? "Move map to select location"
+                        : address,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.all(14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: _confirm,
+                      child: const Text("Confirm Location",style: TextStyle(fontSize: 16, color: Colors.white)),
                     ),
-                  );
-                }).toList();
-              },
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-     
     );
-    
   }
 }

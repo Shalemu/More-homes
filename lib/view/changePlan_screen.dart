@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
+import 'package:morehomesapp/services/auth_services.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/utils/navigation_helper.dart';
 import 'package:provider/provider.dart';
@@ -21,9 +22,10 @@ class ChangeplanScreen extends StatefulWidget {
 
 class _ChangeplanScreenState extends State<ChangeplanScreen> {
   List<dynamic> plans = [];
+  List<Map<String, dynamic>> roles = [];
   int selectedIndex = 0;
   final formatter = NumberFormat("#,##0", "en_US");
-  
+
 
   bool isLoading = true;
   String? error;
@@ -31,20 +33,31 @@ class _ChangeplanScreenState extends State<ChangeplanScreen> {
   @override
   void initState() {
     super.initState();
-    fetchPlans();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      roles = await AuthService().getRoles();
+      debugPrint("Roles from API: $roles");
+    } catch (e) {
+      debugPrint("Failed to load roles: $e");
+    }
+
+    await fetchPlans();
   }
 
 String getGroupName(int groupId) {
-  switch (groupId) {
-    case 1:
-      return "Owner";
-    case 2:
-      return "Customer";
-    case 3:
-      return "Broker";
-    default:
-      return "";
-  }
+  final role = roles.firstWhere(
+    (r) => r['id'].toString() == groupId.toString(),
+    orElse: () => {},
+  );
+
+  final name = role['name']?.toString() ?? '';
+
+  debugPrint("Group ID $groupId → Group Name: $name");
+
+  return name;
 }
 
   Future<void> fetchPlans() async {

@@ -537,6 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 }
 
+// ignore: unused_element
 class _UserTypeCheckbox extends StatelessWidget {
   final String label;
   final bool selected;

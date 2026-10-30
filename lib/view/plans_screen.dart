@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:morehomesapp/config/backend_apis.dart';
 import 'package:morehomesapp/core/app_dialog.dart';
 import 'package:morehomesapp/providers/auth_providers.dart';
+import 'package:morehomesapp/services/auth_services.dart';
 import 'package:morehomesapp/theme/app_color.dart';
 import 'package:morehomesapp/utils/navigation_helper.dart';
 import 'package:provider/provider.dart';
@@ -20,30 +21,52 @@ class PlansScreen extends StatefulWidget {
 
 class _PlansScreenState extends State<PlansScreen> {
   List<dynamic> plans = [];
+  List<Map<String, dynamic>> roles = [];
   int selectedIndex = 0;
   final formatter = NumberFormat("#,##0", "en_US");
+
+ 
 
   bool isLoading = true;
   String? error;
 
-  @override
-  void initState() {
-    super.initState();
-    fetchPlans();
+@override
+void initState() {
+  super.initState();
+  _initialize();
+}
+
+Future<void> _initialize() async {
+  try {
+    roles = await AuthService().getRoles();
+
+    debugPrint("Roles from API: $roles");
+
+    await fetchPlans();
+  } catch (e) {
+    debugPrint("Initialization error: $e");
+
+    if (mounted) {
+      setState(() {
+        error = "Failed to load data";
+        isLoading = false;
+      });
+    }
   }
+}
 
 
 String getGroupName(int groupId) {
-  switch (groupId) {
-    case 1:
-      return "Owner";
-    case 2:
-      return "Customer";
-    case 3:
-      return "Broker";
-    default:
-      return "";
-  }
+  final role = roles.firstWhere(
+    (r) => r['id'].toString() == groupId.toString(),
+    orElse: () => {},
+  );
+
+  final name = role['name']?.toString() ?? '';
+
+  debugPrint("Group ID $groupId → Group Name: $name");
+
+  return name;
 }
 
 Future<void> fetchPlans() async {
@@ -64,9 +87,11 @@ Future<void> fetchPlans() async {
           "Authorization": "Bearer $token",
       },
     );
+    final data = json.decode(response.body);
 
-    debugPrint("Status Code: ${response.statusCode}");
-    debugPrint("Raw Response: ${response.body}");
+    debugPrint("Decoded Data: $data");
+    debugPrint("Plans data type: ${data["data"].runtimeType}");
+    debugPrint("Plans data: ${data["data"]}");
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
@@ -210,8 +235,8 @@ Future<void> subscribeToPlan(String planUuid) async {
     }
 
     if (plans.isEmpty) {
-  return const Center(child: Text("No plans available"));
-}
+      return _buildEmptyState();
+    }
 
     final plan = plans[selectedIndex];
 
@@ -414,6 +439,157 @@ Future<void> subscribeToPlan(String planUuid) async {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B0B12),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                colors: [AppColors.primary, Color(0xFF0B0B12)],
+                radius: 1.2,
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                        child: Container(
+                          width: 320,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 28,
+                            vertical: 40,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.15),
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      AppColors.primary,
+                                      Color(0xFFFFD54F),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          AppColors.primary.withOpacity(0.4),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.workspace_premium_rounded,
+                                  color: Colors.white,
+                                  size: 40,
+                                ),
+                              ).animate().fade().scale(),
+
+                              const SizedBox(height: 24),
+
+                              const Text(
+                                "No Plans Available",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              const Text(
+                                "There are no subscription plans for your "
+                                "account type right now. Please check back "
+                                "soon for premium offers.",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    setState(() => isLoading = true);
+                                    _initialize();
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text(
+                                    "Refresh",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text(
+                                  "Go Back",
+                                  style: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

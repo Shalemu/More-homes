@@ -8,6 +8,7 @@ import 'package:morehomesapp/view/home_screen.dart';
 import 'package:morehomesapp/view/login_screen.dart';
 import 'package:morehomesapp/view/onboarding_screen.dart';
 import 'package:morehomesapp/utils/app_session.dart';
+import 'package:morehomesapp/services/version_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -24,10 +25,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   int _dotIndex = 0;
   Timer? _dotTimer;
+  Future<bool>? _updateCheck;
 
   @override
   void initState() {
     super.initState();
+
+    // Check for an available app update after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateCheck = UpdateService.check(context);
+    });
 
   
     _controller = AnimationController(
@@ -62,6 +69,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
 Future<void> _navigateUser() async {
+  if (!mounted) return;
+
+  // Let the version check finish before leaving the splash screen, so it
+  // cannot navigate over the force update screen.
+  if (_updateCheck != null && await _updateCheck!) return;
   if (!mounted) return;
 
   final auth = Provider.of<AuthProvider>(context, listen: false);

@@ -2,6 +2,9 @@ import 'package:http/http.dart' as http;
 class ApiConstants {
   static const String baseUrl = "https://morehomes.co.tz/api/v1";
 
+  // Public app version/update configuration used by UpdateService.
+  static const String appVersionConfig = "$baseUrl/app-version-config/";
+
 
   // Auth
   static const String login = "$baseUrl/auth/login/";

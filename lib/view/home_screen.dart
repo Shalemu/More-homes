@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:morehomesapp/services/version_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/property_provider.dart';
 import '../providers/auth_providers.dart';
@@ -38,6 +39,11 @@ class _HomeScreenState extends State<HomeScreen> {
           listen: false,
         ).fetchProperties(token);
       }
+    });
+
+    // check update
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateService.check(context);
     });
   }
 

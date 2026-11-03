@@ -4,8 +4,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ForceUpdateScreen extends StatelessWidget {
   final String? message;
+  final String? updateUrl;
 
-  const ForceUpdateScreen({super.key, this.message});
+  const ForceUpdateScreen({super.key, this.message, this.updateUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -87,11 +88,12 @@ class ForceUpdateScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                       onPressed: () async {
-                        final uri = Uri.parse(
-                          "https://play.google.com/store/apps/details?id=com.shadrack.morehomesapp&pcampaignid=web_share",
+                        final uri = Uri.tryParse(
+                          updateUrl ??
+                              "https://play.google.com/store/apps/details?id=com.shadrack.morehomesapp&pcampaignid=web_share",
                         );
 
-                        if (await canLaunchUrl(uri)) {
+                        if (uri != null && await canLaunchUrl(uri)) {
                           await launchUrl(
                             uri,
                             mode: LaunchMode.externalApplication,
